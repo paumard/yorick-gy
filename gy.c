@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <fenv.h>
+#include <string.h>
 
 typedef struct _gy_Object {
   GIBaseInfo * info;
@@ -139,18 +140,75 @@ gy_Object_extract(void *obj, char * name)
     if (tfound) ypush_long(wtype);
     else y_errorq("No such enum value: %s", name);
     return;
-  }
+  } else if (GI_IS_OBJECT_INFO(o->info)) {
 
-  GIBaseInfo * info = g_object_info_find_method (o->info, name);
-  if (!info) y_error("No such method");
-  gy_Object * out = ypush_gy_Object();
-  out->info = info;
-  if (g_function_info_get_flags (info) & GI_FUNCTION_IS_METHOD) {
-    // a method needs an object!
-    out->object=o->object;
-    g_object_ref(o->object);
-  }
+    printf("Looking for symbol %s in %s\n",
+	     name,
+	     g_base_info_get_name(o->info));
 
+    GIBaseInfo * info = g_object_info_find_method (o->info, name);
+
+    GIBaseInfo * cur = o->info, *next;
+    g_base_info_ref(cur);
+    while (!info &&
+	   strcmp(g_base_info_get_name(cur), "InitiallyUnowned")) {
+      next = g_object_info_get_parent(cur);
+      g_base_info_unref(cur);
+      cur = next;
+      printf("Looking for symbol %s in parent %s\n",
+	     name,
+	     g_base_info_get_name(cur));
+      info = g_object_info_find_method (cur, name);
+    }
+    if (info)
+      printf("Symbol %s found in %s\n",
+	     name,
+	     g_base_info_get_name(cur));
+    g_base_info_unref(cur);
+
+    
+    /*  if (!info) {
+	info = g_irepository_find_by_name(NULL,
+	g_base_info_get_namespace (o->info),
+	G_OBJECT_TYPE_NAME(o->object));
+	printf("  %s\n", g_base_info_get_name (info));
+	info = g_object_info_find_method (o->info, name);
+	//info = g_object_info_find_method (sinfo, name);
+	/*
+	gint i, ni = g_object_info_get_n_interfaces (o->info);
+	for (i=0; i<ni; ++i) {
+	GIInterfaceInfo * itrf =
+	g_object_info_get_interface (o->info, i);
+	printf("interface name: %s\n", g_base_info_get_name(itrf));
+	info = g_object_info_find_method (itrf, name);
+	g_base_info_unref(itrf);
+	if (info) break;
+	}
+    */
+    //}
+    
+    if (!info) {
+      /*
+	printf("Available methods:\n");
+	int i, n = g_object_info_get_n_vfuncs (o->info);
+	printf("Object has %d method(s)\n", n);
+	GIFunctionInfo * gmi;
+	for (i=0; i<n; ++i) {
+	gmi=g_object_info_get_vfunc(o->info, i);
+	printf("  %s\n", g_base_info_get_name (gmi));
+	g_base_info_unref(gmi);
+	}*/
+      
+      y_error("No such method");
+    }
+    gy_Object * out = ypush_gy_Object();
+    out->info = info;
+    if (g_function_info_get_flags (info) & GI_FUNCTION_IS_METHOD) {
+      // a method needs an object!
+      out->object=o->object;
+      g_object_ref(o->object);
+    }
+  }
 }
 
 void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
@@ -164,6 +222,9 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     break;
   case GI_TYPE_TAG_INT32:
     arg->v_int32=(gint32)ygets_l(iarg);
+    break;
+  case GI_TYPE_TAG_UTF8:
+    arg->v_string=ygets_q(iarg);
     break;
   case GI_TYPE_TAG_ARRAY:
     alen=g_type_info_get_array_length(info);
@@ -204,8 +265,12 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
 		 g_enum_info_get_storage_type (itrf));
       }
       break;
+    case GI_INFO_TYPE_OBJECT:
+      arg->v_pointer=yget_gy_Object(iarg)->object;
+      break;
     default:
-      y_error("Unimplemented GIArgument interface type");
+      y_errorn("Unimplemented GIArgument interface type %ld",
+	      g_base_info_get_type (itrf));
     }
     g_base_info_unref(itrf);
     break;
@@ -220,9 +285,15 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
   gy_Object * outObject=NULL;
+
+  // const char * nspace, * name_with_namespace, * name;
+
   switch(type) {
   case GI_TYPE_TAG_VOID: 
     ypush_nil();
+    break;
+  case GI_TYPE_TAG_UINT32:
+    ypush_long(arg->v_int32);
     break;
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
@@ -241,11 +312,22 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
       }
     case GI_INFO_TYPE_OBJECT:
       outObject = ypush_gy_Object();
-      outObject -> info = itrf;
-      g_base_info_ref(outObject -> info);
+
       outObject -> object = arg -> v_pointer;
       g_object_ref(outObject -> object);
       printf("v_pointer: %p\n", arg -> v_pointer);
+
+      if (G_IS_OBJECT(outObject -> object)) {
+	outObject->info =
+	  g_irepository_find_by_gtype(NULL,
+				      G_OBJECT_TYPE(outObject->object));
+      } else {
+	outObject -> info = info;
+	gi_base_info_ref(info);
+      }
+
+      printf("object info name: %s\n", g_base_info_get_name(outObject->info));
+
       break;
     default:
       y_errorn("Unimplemented output GIArgument interface type %ld",
@@ -338,6 +420,24 @@ gy_Object_eval(void *obj, int argc)
 
   gy_Argument_pushany(&retval, retinfo);
 
+  /*
+  if (g_function_info_get_flags (o->info) & GI_FUNCTION_IS_CONSTRUCTOR) {
+    gy_Object*out = yget_gy_Object(0);
+    g_base_info_unref(out->info);
+    const char * nspace = g_base_info_get_namespace (o->info);
+    printf("Namespace: %s\n", nspace);
+    const char * name_with_namespace = G_OBJECT_TYPE_NAME(out->object);
+    printf("Name with namespace: %s\n", name_with_namespace);
+    const char * name = name_with_namespace + strlen(nspace);
+    printf("Name without namespace: %s\n", name);
+
+    out->info = g_irepository_find_by_name(NULL,
+					   nspace,
+					   name);
+
+    g_base_info_ref(out->info);
+  }
+  */
   g_base_info_unref(retinfo); 
   g_free (in_args);
   g_free (out_args);
@@ -378,4 +478,73 @@ Y_gy_require(int argc)
 					   0,
 					   &err);
   if (!tl->typelib) y_error(err->message);
+}
+
+Y_gy_list_namespace(int argc) {
+  char * name = ygets_q(0);
+  gint i, ninfos;
+  ninfos = g_irepository_get_n_infos (NULL, "Gtk");
+  printf("Gtk has %d infos\n", ninfos);
+  GIBaseInfo * info;
+  for (i=0; i<ninfos; ++i) {
+    info = g_irepository_get_info(NULL, "Gtk", i);
+    printf("Info type: %s, name: %s\n",
+	   g_info_type_to_string(g_base_info_get_type (info)),
+	   g_base_info_get_name (info));
+    g_base_info_unref(info);
+  }
+}
+
+Y_gy_list_object(int argc) {
+  gy_Object * o = yget_gy_Object(0);
+    printf("gy object name: %s, type: %s, namespace: %s\n",
+	   g_base_info_get_name(o->info),
+	   g_info_type_to_string(g_base_info_get_type (o->info)),
+	   g_base_info_get_namespace (o->info));
+  if (o->object) {
+    printf("with object at %p\n", o->object);
+    printf("Object type: %s\n", G_OBJECT_TYPE_NAME(o->object));
+  }
+  if (GI_IS_ENUM_INFO(o->info)) {
+    gint64 wtype=-1;
+    gint nc = g_enum_info_get_n_values (o->info);
+    GIValueInfo * ci ;
+    gint i;
+    for (i=0; i<nc; ++i) {
+      ci = g_enum_info_get_value(o->info, i);
+      printf("Enum name: %s\n", g_base_info_get_name (ci));
+    }
+  } else if (GI_IS_OBJECT_INFO(o->info)) {
+
+    printf("Available vfuncs:\n");
+    int i, n = g_object_info_get_n_vfuncs (o->info);
+    printf("Object has %d vfuncs(s)\n", n);
+    GIFunctionInfo * gmi;
+    for (i=0; i<n; ++i) {
+      gmi=g_object_info_get_vfunc(o->info, i);
+      printf("  %s\n", g_base_info_get_name (gmi));
+      g_base_info_unref(gmi);
+    }
+
+    printf("Available methods:\n");
+    n = g_object_info_get_n_methods (o->info);
+    printf("Object has %d methods(s)\n", n);
+    for (i=0; i<n; ++i) {
+      gmi=g_object_info_get_method(o->info, i);
+      printf("  %s\n", g_base_info_get_name (gmi));
+      g_base_info_unref(gmi);
+    }
+
+    if (g_object_info_get_fundamental (o->info))
+      printf("Object is fundamental\n");
+    else if (!strcmp(g_base_info_get_name(o->info), "InitiallyUnowned"))
+      printf("Object is InitiallyUnowned\n");
+    else {
+      gmi = g_object_info_get_parent(o->info);
+      if (gmi) {
+	printf("Object parent: %s\n", g_base_info_get_name(gmi));
+	g_base_info_unref(gmi);
+      } else printf("Object has no parent\n");
+    }
+  }
 }
