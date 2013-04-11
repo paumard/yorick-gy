@@ -168,8 +168,7 @@ gy_Object_extract(void *obj, char * name)
     GIBaseInfo * cur = o->info, *next;
     g_base_info_ref(cur);
     while (!info &&
-	   strcmp(g_base_info_get_name(cur), "InitiallyUnowned")) {
-      next = g_object_info_get_parent(cur);
+	   (next = g_object_info_get_parent(cur))) {
       g_base_info_unref(cur);
       cur = next;
       printf("Looking for symbol %s in parent %s\n",
@@ -539,11 +538,19 @@ Y_gy_require(int argc)
 Y_gy_list_namespace(int argc) {
   char * name = ygets_q(0);
   gint i, ninfos;
-  ninfos = g_irepository_get_n_infos (NULL, "Gtk");
-  printf("Gtk has %d infos\n", ninfos);
+  GError * err;
+  GITypelib * typelib=
+    g_irepository_require (NULL,
+			   name,
+			   NULL,
+			   0,
+			   &err);
+  if (!typelib) y_error(err->message);
+  ninfos = g_irepository_get_n_infos (NULL, name);
+  printf("%s has %d infos\n", name, ninfos);
   GIBaseInfo * info;
   for (i=0; i<ninfos; ++i) {
-    info = g_irepository_get_info(NULL, "Gtk", i);
+    info = g_irepository_get_info(NULL, name, i);
     printf("Info type: %s, name: %s\n",
 	   g_info_type_to_string(g_base_info_get_type (info)),
 	   g_base_info_get_name (info));
@@ -602,8 +609,6 @@ Y_gy_list_object(int argc) {
 
     if (g_object_info_get_fundamental (o->info))
       printf("Object is fundamental\n");
-    else if (!strcmp(g_base_info_get_name(o->info), "InitiallyUnowned"))
-      printf("Object is InitiallyUnowned\n");
     else {
       gmi = g_object_info_get_parent(o->info);
       if (gmi) {
