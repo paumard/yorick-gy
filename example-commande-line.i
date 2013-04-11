@@ -1,13 +1,28 @@
 #include "gy.i"
+#include "string.i"
 
 Gtk=gy_require("Gtk");
 Gtk.disable_setlocale();
 Gtk.init_check(0,);
 win = Gtk.Window.new(Gtk.WindowType.toplevel);
 
-button = Gtk.Button.new_with_label("Hello World!");
-win.add(button);
-gy_signal_connect, button, "clicked", "\"Hello World!\"";
+//button = Gtk.Button.new_with_label("Hello World!");
+//win.add(button);
+//gy_signal_connect, button, "clicked", "\"Hello World!\"";
+
+func idler(void) {
+  Gtk.main();
+}
+
+func entry_activated(void) {
+  noop, Gtk.main_quit();
+  set_idler, idler;
+  cmd=entry.get_text();
+  include, strchar("if (catch(-1)) {return;} "+cmd), 1;
+}
+entry = Gtk.Entry.new();
+gy_signal_connect, entry, "activate", "entry_activated";
+noop, win.add(entry);
 
 func winhide(void) {
   noop, win.hide();

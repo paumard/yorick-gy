@@ -320,8 +320,14 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
   case GI_TYPE_TAG_VOID: 
     ypush_nil();
     break;
+  case GI_TYPE_TAG_BOOLEAN:
+    ypush_long(arg->v_boolean);
+    break;
   case GI_TYPE_TAG_UINT32:
     ypush_long(arg->v_int32);
+    break;
+  case GI_TYPE_TAG_UTF8:
+    *ypush_q(0) = p_strcpy(arg->v_string);
     break;
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
