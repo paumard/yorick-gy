@@ -140,11 +140,12 @@ gy_Object_extract(void *obj, char * name)
     if (tfound) ypush_long(wtype);
     else y_errorq("No such enum value: %s", name);
     return;
-  } else if (GI_IS_OBJECT_INFO(o->info)) {
+  }
+  if (GI_IS_OBJECT_INFO(o->info)) {
 
     printf("Looking for symbol %s in %s\n",
-	     name,
-	     g_base_info_get_name(o->info));
+	   name,
+	   g_base_info_get_name(o->info));
 
     GIBaseInfo * info = g_object_info_find_method (o->info, name);
 
@@ -160,53 +161,64 @@ gy_Object_extract(void *obj, char * name)
 	     g_base_info_get_name(cur));
       info = g_object_info_find_method (cur, name);
     }
-    if (info)
+    if (info) {
       printf("Symbol %s found in %s\n",
 	     name,
 	     g_base_info_get_name(cur));
-    g_base_info_unref(cur);
-
-    
-    /*  if (!info) {
-	info = g_irepository_find_by_name(NULL,
-	g_base_info_get_namespace (o->info),
-	G_OBJECT_TYPE_NAME(o->object));
-	printf("  %s\n", g_base_info_get_name (info));
-	info = g_object_info_find_method (o->info, name);
-	//info = g_object_info_find_method (sinfo, name);
-	/*
-	gint i, ni = g_object_info_get_n_interfaces (o->info);
-	for (i=0; i<ni; ++i) {
-	GIInterfaceInfo * itrf =
-	g_object_info_get_interface (o->info, i);
-	printf("interface name: %s\n", g_base_info_get_name(itrf));
-	info = g_object_info_find_method (itrf, name);
-	g_base_info_unref(itrf);
-	if (info) break;
-	}
-    */
-    //}
-    
-    if (!info) {
-      /*
-	printf("Available methods:\n");
-	int i, n = g_object_info_get_n_vfuncs (o->info);
-	printf("Object has %d method(s)\n", n);
-	GIFunctionInfo * gmi;
-	for (i=0; i<n; ++i) {
-	gmi=g_object_info_get_vfunc(o->info, i);
-	printf("  %s\n", g_base_info_get_name (gmi));
-	g_base_info_unref(gmi);
-	}*/
-      
-      y_error("No such method");
+      g_base_info_unref(cur);
+      gy_Object * out = ypush_gy_Object();
+      out->info = info;
+      if (g_function_info_get_flags (info) & GI_FUNCTION_IS_METHOD) {
+	// a method needs an object!
+	out->object=o->object;
+	g_object_ref(o->object);
+      }
+      return;
     }
-    gy_Object * out = ypush_gy_Object();
-    out->info = info;
-    if (g_function_info_get_flags (info) & GI_FUNCTION_IS_METHOD) {
-      // a method needs an object!
-      out->object=o->object;
-      g_object_ref(o->object);
+
+    static const char const * sigprefix = "signal_";
+    int sigprefixlen=7;
+
+    if (!strncmp(name, sigprefix, sigprefixlen)) {
+      name += sigprefixlen;
+
+      printf("Looking for signal %s in %s\n",
+	     name,
+	     g_base_info_get_name(o->info));
+  
+
+      gint nc = g_object_info_get_n_signals (o->info);
+
+      printf("%s has %d signals\n", g_base_info_get_name(o->info), nc);
+
+      GISignalInfo * ci=NULL ;
+      gint i;
+
+      gboolean tfound=0;
+      for (i=0; i<nc; ++i) {
+	ci = g_object_info_get_signal(o->info, i);
+	printf("Checking against %s... ", g_base_info_get_name (ci));
+	if (!strcmp(g_base_info_get_name (ci), name)) {
+	  printf("yes.\n");
+	  info=ci;
+	  break;
+	}
+	printf("no.\n");
+	g_base_info_unref(ci);
+      }
+      if (info) {
+	printf("Pushing object... ");
+	gy_Object * out = ypush_gy_Object();
+	printf("putting value... ");
+	out -> info = info;
+	printf("done.\n");
+	return;
+      }
+      y_errorq("Signal %s not found", name);
+    }
+
+    if (!info) {
+      y_error("No such method");
     }
   }
 }
@@ -357,7 +369,8 @@ gy_Object_eval(void *obj, int argc)
   GIArgInfo arginfo;
   gint n_in=0, n_out=0, i;
 
-  if (g_function_info_get_flags (o->info) & GI_FUNCTION_IS_METHOD) {
+  if (GI_IS_FUNCTION_INFO(o->info) &&
+      (g_function_info_get_flags (o->info) & GI_FUNCTION_IS_METHOD)) {
     printf ("Object address: %p\n", o->object);
     printf("Is object: %d\n", G_IS_OBJECT(o->object));
     printf("Object type name: %s\n", G_OBJECT_TYPE_NAME(o->object));
@@ -413,6 +426,9 @@ gy_Object_eval(void *obj, int argc)
 					     &err);
   fesetenv(&fenv_in);
   if (!success) y_error(err->message);
+
+  printf("Function %s sucessfully called\n", g_base_info_get_name(o->info));
+
   if (n_out)
     y_warn("unimplemented: positional out arguments");
 
@@ -535,6 +551,15 @@ Y_gy_list_object(int argc) {
       g_base_info_unref(gmi);
     }
 
+    printf("Available signals:\n");
+    n = g_object_info_get_n_signals (o->info);
+    printf("Object has %d signals(s)\n", n);
+    for (i=0; i<n; ++i) {
+      gmi=g_object_info_get_signal(o->info, i);
+      printf("  %s\n", g_base_info_get_name (gmi));
+      g_base_info_unref(gmi);
+    }
+
     if (g_object_info_get_fundamental (o->info))
       printf("Object is fundamental\n");
     else if (!strcmp(g_base_info_get_name(o->info), "InitiallyUnowned"))
@@ -547,4 +572,28 @@ Y_gy_list_object(int argc) {
       } else printf("Object has no parent\n");
     }
   }
+}
+
+void gy_callback(GObject* obj, ...) {
+  const char * cmd = g_object_get_data(obj, "gy_callback");
+  printf("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
+  long dims[2]={1,1};
+  *ypush_q(dims) = p_strcpy(cmd);
+  yexec_include(0,1);
+  yarg_drop(0);
+}
+
+void
+Y_gy_signal_connect(int argc) {
+  gy_Object * o = yget_gy_Object(argc-1);
+  ystring_t sig = ygets_q(argc-2);
+  ystring_t cmd = p_strcpy(ygets_q(argc-3));
+  // this will work as long as object is the first parameter
+  // in the callback signature.
+  g_object_set_data(o->object, "gy_callback", cmd);
+  g_signal_connect (o -> object,
+		    sig,
+		    G_CALLBACK(&gy_callback),
+		    NULL);
+  ypush_nil();
 }
