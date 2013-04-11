@@ -23,9 +23,9 @@ noop, Gtk.main();
 Gtk=gy_require("Gtk");
 Gtk.init(0,);
 builder = Gtk.Builder.new()
-builder.add_from_file(glade_file_name)
+builder.add_from_file("../Gyoto/yorick/gyotoy.xml")
 builder.get_object("window1")
-win = builder.get_object(main_window_name)
+win = builder.get_object("window1")
 // connect some signals
 win.show_all()
 Gtk.main()

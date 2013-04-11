@@ -316,7 +316,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
 	ypush_long(arg->v_uint32);
 	break;
       case GI_TYPE_TAG_INT64:
-	y_push_long(arg->v_int64);
+	ypush_long(arg->v_int64);
 	break;
       default:
 	y_errorn("Unimplemented output GIArgument enum storage %ld",
@@ -335,7 +335,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
 				      G_OBJECT_TYPE(outObject->object));
       } else {
 	outObject -> info = info;
-	gi_base_info_ref(info);
+	g_base_info_ref(info);
       }
 
       printf("object info name: %s\n", g_base_info_get_name(outObject->info));
