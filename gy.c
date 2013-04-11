@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <fenv.h>
 #include <string.h>
+#include <signal.h>
 
 typedef struct _gy_Object {
   GIBaseInfo * info;
@@ -33,6 +34,21 @@ gy_Object* yget_gy_Object(int);
 gy_Object* ypush_gy_Object();
 
 /// TYPELIB
+
+void gy_sa_handler(int sig) {
+  const char * ssig="(signal name unknown)";
+  switch (sig) {
+  case SIGABRT:
+    ssig="SIGABRT";
+    break;
+  case SIGSEGV:
+    ssig="SIGSEGV";
+    break;
+  default:
+    break;
+  }
+  y_errorq("gy action received signal %s", ssig);
+}
 
 typedef struct _gy_Typelib {
   GITypelib * typelib;
@@ -323,6 +339,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
 		 g_enum_info_get_storage_type (itrf));
       }
     case GI_INFO_TYPE_OBJECT:
+      if (!arg -> v_pointer) ypush_nil();
       outObject = ypush_gy_Object();
 
       outObject -> object = arg -> v_pointer;
@@ -374,6 +391,7 @@ gy_Object_eval(void *obj, int argc)
     printf ("Object address: %p\n", o->object);
     printf("Is object: %d\n", G_IS_OBJECT(o->object));
     printf("Object type name: %s\n", G_OBJECT_TYPE_NAME(o->object));
+    if (!o -> object) y_error("NULL pointer");
     in_args[0].v_pointer= o -> object;
     ++n_in;
   }
@@ -417,6 +435,15 @@ gy_Object_eval(void *obj, int argc)
 
   fenv_t fenv_in;
   if (feholdexcept(&fenv_in)) y_error("fenv error");
+
+
+  struct sigaction act, *oldact;
+  act.sa_handler=&gy_sa_handler;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags=0;
+  sigaction(SIGABRT, &act, oldact);
+  sigaction(SIGSEGV, &act, oldact);
+
   gboolean success = g_function_info_invoke (o->info,
 					     in_args,
 					     n_in,
@@ -424,8 +451,13 @@ gy_Object_eval(void *obj, int argc)
 					     n_out,
 					     &retval,
 					     &err);
+  sigaction(SIGABRT, oldact, NULL);
+
   fesetenv(&fenv_in);
-  if (!success) y_error(err->message);
+  if (!success) {
+    fprintf(stderr, "here\n");
+    y_error(err->message);
+  }
 
   printf("Function %s sucessfully called\n", g_base_info_get_name(o->info));
 

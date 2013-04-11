@@ -19,13 +19,14 @@ noop, win.show_all();
 noop, Gtk.main();
 
 /*
-// From a file:
+// From a file: grab some glade file and fix the two variables below!
+glade_file_name="../Gyoto/yorick/gyotoy.xml";
+main_window_name="window1";
 Gtk=gy_require("Gtk");
 Gtk.init(0,);
 builder = Gtk.Builder.new()
-builder.add_from_file("../Gyoto/yorick/gyotoy.xml")
-builder.get_object("window1")
-win = builder.get_object("window1")
+builder.add_from_file(glade_file_name)
+win = builder.get_object(main_window_name)
 // connect some signals
 win.show_all()
 Gtk.main()
