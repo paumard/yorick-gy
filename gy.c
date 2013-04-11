@@ -473,7 +473,9 @@ gy_Object* ypush_gy_Object() {
 void
 Y_gy_init(int argc)
 {
+#if !GLIB_CHECK_VERSION(2,35,1)
   g_type_init();
+#endif
 }
 
 void
