@@ -29,9 +29,16 @@
 typedef struct _gy_Object {
   GIBaseInfo * info;
   GObject * object;
+  GIRepository * repo;
 } gy_Object;
 gy_Object* yget_gy_Object(int);
 gy_Object* ypush_gy_Object();
+
+typedef struct _gy_Repository {
+  GIRepository * repo;
+} gy_Repository;
+gy_Repository* yget_gy_Repository(int);
+gy_Repository* ypush_gy_Repository();
 
 /// TYPELIB
 
@@ -53,6 +60,7 @@ void gy_sa_handler(int sig) {
 typedef struct _gy_Typelib {
   GITypelib * typelib;
   gchar * namespace;
+  GIRepository * repo;
 } gy_Typelib;
 
 void gy_Typelib_free(void *obj);
@@ -70,6 +78,7 @@ static y_userobj_t gy_Typelib_obj =
 
 void gy_Typelib_free(void *obj) {
   p_free(((gy_Typelib*)obj)->namespace);
+  //g_typelib_free(((gy_Typelib*)obj)->typelib);
 }
 
 void gy_Typelib_print(void *obj){
@@ -88,6 +97,7 @@ gy_Typelib_extract(void *obj, char * name)
   if (!info) y_error("No such member");
   gy_Object * o = ypush_gy_Object();
   o->info = info;
+  o->repo = tl->repo;
 }
 
 gy_Typelib* yget_gy_Typelib(int iarg) {
@@ -97,6 +107,61 @@ gy_Typelib* yget_gy_Typelib(int iarg) {
 gy_Typelib* ypush_gy_Typelib() {
   return (gy_Typelib*) ypush_obj(&gy_Typelib_obj, sizeof(gy_Typelib));
 }
+
+
+/// GYREPOSITORY
+
+//void gy_Repository_free(void *obj);
+void gy_Repository_print(void *obj);
+//void gy_Repository_eval(void *obj, int argc);
+void gy_Repository_extract(void *, char *);
+static y_userobj_t gy_Repository_obj =
+  {"gy_Repository",
+   NULL, //&gy_Repository_free,
+   &gy_Repository_print,
+   NULL, //&gy_Repository_eval,
+   &gy_Repository_extract,
+   NULL  //&uo_ops
+  };
+
+void gy_Repository_print(void *obj){
+  gy_Repository * r = (gy_Repository *) obj;
+  gchar ** nspcs = g_irepository_get_loaded_namespaces(r->repo);
+  if (!nspcs) {
+    y_print("gy_Repository without any loaded namespaces", 0);
+    return;
+  }
+  y_print("gy_Repository with loaded namespaces:", 1);
+  for (;*nspcs;++nspcs) y_print(*nspcs, 1);
+}
+
+void
+gy_Repository_extract(void *obj, char * name)
+{
+  gy_Repository * r = (gy_Repository *) obj;
+  GError * err;
+
+  /// push output
+  gy_Typelib * tl = ypush_gy_Typelib();
+
+  tl -> namespace = p_strcpy(name);
+  tl -> repo      = r -> repo,
+  tl -> typelib   = g_irepository_require (r->repo,
+					   name,
+					   NULL,
+					   0,
+					   &err);
+  if (!tl->typelib) y_error(err->message);
+}
+
+gy_Repository* yget_gy_Repository(int iarg) {
+  return (gy_Repository*) yget_obj(iarg, &gy_Repository_obj);
+}
+
+gy_Repository* ypush_gy_Repository() {
+  return (gy_Repository*) ypush_obj(&gy_Repository_obj, sizeof(gy_Repository));
+}
+
 
 /// GIBASEINFO
 
@@ -121,16 +186,16 @@ void gy_Object_free(void *obj) {
 
 void gy_Object_print(void *obj) {
   gy_Object* o = (gy_Object*) obj;
+  if (o->object) {
+    printf("%p", o->object);
+    y_print(" is pointer to ", 0);
+  }
   y_print("gy object name: ", 0);
   y_print(g_base_info_get_name(o->info), 0);
   y_print(", type: ", 0);
   y_print(g_info_type_to_string(g_base_info_get_type (o->info)), 0);
   y_print(", namespace: ", 0);
   y_print(g_base_info_get_namespace (o->info), 0);
-  if (o->object) {
-    y_print("with object at ", 0);
-    printf("%p", o->object);
-  }
 }
 
 void
@@ -183,6 +248,7 @@ gy_Object_extract(void *obj, char * name)
       g_base_info_unref(cur);
       gy_Object * out = ypush_gy_Object();
       out->info = info;
+      out->repo = o->repo;
       if (g_function_info_get_flags (info) & GI_FUNCTION_IS_METHOD) {
 	// a method needs an object!
 	out->object=o->object;
@@ -212,21 +278,16 @@ gy_Object_extract(void *obj, char * name)
       gboolean tfound=0;
       for (i=0; i<nc; ++i) {
 	ci = g_object_info_get_signal(o->info, i);
-	printf("Checking against %s... ", g_base_info_get_name (ci));
 	if (!strcmp(g_base_info_get_name (ci), name)) {
-	  printf("yes.\n");
 	  info=ci;
 	  break;
 	}
-	printf("no.\n");
 	g_base_info_unref(ci);
       }
       if (info) {
-	printf("Pushing object... ");
 	gy_Object * out = ypush_gy_Object();
-	printf("putting value... ");
 	out -> info = info;
-	printf("done.\n");
+	out->repo = o->repo;
 	return;
       }
       y_errorq("Signal %s not found", name);
@@ -246,6 +307,9 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
   switch(type) {
   case GI_TYPE_TAG_BOOLEAN:
     arg->v_boolean=yarg_true(iarg);
+    break;
+  case GI_TYPE_TAG_UINT8:
+    arg->v_uint8=(gint8)ygets_l(iarg);
     break;
   case GI_TYPE_TAG_INT32:
     arg->v_int32=(gint32)ygets_l(iarg);
@@ -279,6 +343,11 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
+      /*
+    case GI_INFO_TYPE_STRUCT:
+      ;
+      break;
+      */
     case GI_INFO_TYPE_ENUM:
       switch (g_enum_info_get_storage_type (itrf)) {
       case GI_TYPE_TAG_UINT32:
@@ -308,7 +377,7 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
   }
 }
 
-void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
+void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
   gy_Object * outObject=NULL;
@@ -346,21 +415,18 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info) {
     case GI_INFO_TYPE_OBJECT:
       if (!arg -> v_pointer) ypush_nil();
       outObject = ypush_gy_Object();
-
+      outObject -> repo= o -> repo;
       outObject -> object = arg -> v_pointer;
       g_object_ref(outObject -> object);
-      printf("v_pointer: %p\n", arg -> v_pointer);
 
       if (G_IS_OBJECT(outObject -> object)) {
 	outObject->info =
-	  g_irepository_find_by_gtype(NULL,
+	  g_irepository_find_by_gtype(o -> repo,
 				      G_OBJECT_TYPE(outObject->object));
       } else {
 	outObject -> info = info;
 	g_base_info_ref(info);
       }
-
-      printf("object info name: %s\n", g_base_info_get_name(outObject->info));
 
       break;
     default:
@@ -471,7 +537,7 @@ gy_Object_eval(void *obj, int argc)
 
   GITypeInfo * retinfo = g_callable_info_get_return_type(o->info);
 
-  gy_Argument_pushany(&retval, retinfo);
+  gy_Argument_pushany(&retval, retinfo, o);
 
   /*
   if (g_function_info_get_flags (o->info) & GI_FUNCTION_IS_CONSTRUCTOR) {
@@ -513,6 +579,7 @@ Y_gy_init(int argc)
 #if !GLIB_CHECK_VERSION(2,35,1)
   g_type_init();
 #endif
+  ypush_gy_Repository()->repo = g_irepository_get_default();
 }
 
 void
@@ -527,6 +594,7 @@ Y_gy_require(int argc)
   gy_Typelib * tl = ypush_gy_Typelib();
 
   tl -> namespace = p_strcpy(namespace);
+  tl -> repo      = NULL,
   tl -> typelib   = g_irepository_require (NULL,
 					   namespace,
 					   NULL,
@@ -536,22 +604,33 @@ Y_gy_require(int argc)
 }
 
 Y_gy_list_namespace(int argc) {
-  char * name = ygets_q(0);
+  if (argc!=1) y_error("gy_list_namespace takes exactly 1 argument");
+  char * name =NULL;
   gint i, ninfos;
-  GError * err;
-  GITypelib * typelib=
-    g_irepository_require (NULL,
-			   name,
-			   NULL,
-			   0,
-			   &err);
-  if (!typelib) y_error(err->message);
-  ninfos = g_irepository_get_n_infos (NULL, name);
-  printf("%s has %d infos\n", name, ninfos);
+  GError * err=NULL;
+  GITypelib * typelib=NULL;
+  gy_Typelib * tl =NULL;
+  GIRepository * repo=NULL;
+  if (yarg_string(0)) {
+    name=ygets_q(0);
+    typelib=g_irepository_require (NULL,
+				   name,
+				   NULL,
+				   0,
+				   &err);
+    if (!typelib) y_error(err->message);
+  } else {
+    tl = yget_gy_Typelib(0);
+    name = tl -> namespace;
+    repo = tl -> repo;
+  }
+
+  ninfos = g_irepository_get_n_infos (repo, name);
+  printf("Namespace %s has %d infos\n", name, ninfos);
   GIBaseInfo * info;
   for (i=0; i<ninfos; ++i) {
-    info = g_irepository_get_info(NULL, name, i);
-    printf("Info type: %s, name: %s\n",
+    info = g_irepository_get_info(repo, name, i);
+    printf("  Info type: %s, name: %s\n",
 	   g_info_type_to_string(g_base_info_get_type (info)),
 	   g_base_info_get_name (info));
     g_base_info_unref(info);
