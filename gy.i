@@ -205,4 +205,10 @@ extern gy_xid;
    SEE ALSO: gy, gy_signal_connect, window
  */
 
-extern gy_GdkEventButton;
+extern gy_data;
+/* DOCUMENT data = gy_data(object)
+   
+     Get data set by the C callback on object. Often the GdkEvent if
+     object is a GtkWidget. This is a temporary hack.
+     
+ */

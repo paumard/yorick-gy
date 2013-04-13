@@ -416,17 +416,15 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
   gy_Object * outObject=NULL;
 
   // const char * nspace, * name_with_namespace, * name;
-  fprintf (stderr, "ici\n");
   switch(type) {
   case GI_TYPE_TAG_VOID: 
-    fprintf (stderr, "la\n");
     if (arg->v_pointer) {
-      fprintf(stderr, "not nil\n");
       outObject = ypush_gy_Object();
       outObject -> repo= o -> repo;
       outObject -> object = arg -> v_pointer;
 
       if (G_IS_OBJECT(outObject -> object)) {
+      fprintf(stderr, "plut\n");
 	g_object_ref(outObject -> object);
 	outObject->info =
 	  g_irepository_find_by_gtype(o -> repo,
@@ -437,6 +435,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 	  g_base_info_ref(info);
 	}
       } else {
+	fprintf(stderr, "plat\n");
 	outObject -> info = info;
 	g_base_info_ref(info);
       }
@@ -512,6 +511,13 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 	     g_type_tag_to_string(type));
   }
 }
+
+int
+yarg_gy_Object(int iarg)
+{
+  return yget_obj(iarg,0)==gy_Object_obj.type_name;
+}
+
 void
 gy_Object_eval(void *obj, int argc)
 {
@@ -521,10 +527,13 @@ gy_Object_eval(void *obj, int argc)
 
   if (GI_IS_STRUCT_INFO(o->info)){
     gy_Object* out = ypush_gy_Object(0);
-    if(!o->object)
-      out->object=g_malloc0(g_struct_info_get_size (o->info));
-    else
-      out->object=o->object;
+    if(!o->object) {
+      if (yarg_gy_Object(argc))
+	out -> object = yget_gy_Object(argc--) -> object;
+      else
+	out -> object = g_malloc0(g_struct_info_get_size (o->info));
+    } else
+      out -> object = o->object;
     out->repo=o->repo;
     out->info=o->info;
     g_base_info_ref(o->info);
@@ -903,7 +912,7 @@ Y_gy_xid(int argc) {
 }
 
 void
-Y_gy_GdkEventButton(int argc) {
+Y_gy_data(int argc) {
   gy_Object * o = yget_gy_Object(0);
   GObject * ptr = o->object;
   if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
@@ -911,7 +920,7 @@ Y_gy_GdkEventButton(int argc) {
   out -> repo = o -> repo;
   out -> info = g_irepository_find_by_name(out->repo,
 					   "Gdk",
-					   "EventButton");
+					   "EventAny");
   out -> object = g_object_get_data(ptr, "gy_data");
 
 }

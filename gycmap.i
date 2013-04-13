@@ -23,7 +23,7 @@ func __gycmap_init(void) {
 func __gycmap_callback(void) {
   extern ev;
   "button pressed";
-  ev = gy_GdkEventButton(__gycmap_ebox);
+  ev = gy.Gdk.EventButton(gy_data(__gycmap_ebox));
   ev, x, x, y, y;
   write, format="x=%g, y=%g\n", x, y;
   //noop, gy.Gtk.main_quit();
