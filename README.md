@@ -33,6 +33,9 @@ headers etc., make sure pkg-config can find
 gobject-introspection-1.0.pc or edit the Makefile
 appropriateley. Then:
 
+At the moment, it is also necessary to have the Gdk X11 library and
+headers installed.
+
 yorick -batch make.i
 make
 make install

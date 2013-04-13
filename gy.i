@@ -15,7 +15,7 @@ plug_in, "gy";
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Gyoto.  If not, see <http://www.gnu.org/licenses/>.
+    along with gy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 local gy;
@@ -184,3 +184,23 @@ func gyterm(cmd)
   if (cmd) __gyterm_entry.set_text(cmd);
   noop, gy.Gtk.main();
 }
+
+/// hack: should be done from gi
+extern gy_xid;
+/* DOCUMENT id=gy_xid(wdg)
+   
+     Get X11 window ID associated with widget WDG.
+     This allows displaying a Yorick window inside a Gtk widget.
+
+   EXAMPLE:
+     builder=gy.Gtk.Builder.new(glade_file);
+     ywin = builder.get_object(yorick_widget_name);
+     func on_ywin_event(void) {
+       noop, Gtk.main_quit();
+       set_idler, __gyterm_idler;
+       window, parent=gy_xid(ywin);
+     }
+     gy_signal_connect, ywin, "event", "on_ywin_event";
+     
+   SEE ALSO: gy, gy_signal_connect, window
+ */

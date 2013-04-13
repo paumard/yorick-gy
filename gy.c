@@ -14,10 +14,13 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Gyoto.  If not, see <http://www.gnu.org/licenses/>.
+    along with gy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <gobject-introspection-1.0/girepository.h>
+#include <girepository.h>
+#include <gdk/gdkx.h>
+#include <glib-object.h>
+
 #include "yapi.h"
 #include "pstdlib.h"
 
@@ -90,7 +93,7 @@ void
 gy_Typelib_extract(void *obj, char * name)
 {
   gy_Typelib * tl = (gy_Typelib *) obj;
-  GIBaseInfo * info = g_irepository_find_by_name(NULL,
+  GIBaseInfo * info = g_irepository_find_by_name(tl->repo,
 						 tl->namespace,
 						 name);
   
@@ -181,7 +184,11 @@ static y_userobj_t gy_Object_obj =
 void gy_Object_free(void *obj) {
   gy_Object* o = (gy_Object*) obj;
   if (o->info) g_base_info_unref(o->info);
-  if (o->object) g_object_unref(o->object);
+  if (o->object) {
+    // I don't know how reference counting works here...
+    // if (GI_IS_STRUCT_INFO(o->info)) g_free(o->object);
+    if (GI_IS_OBJECT_INFO(o->info)) g_object_unref(o->object);
+  }
 }
 
 void gy_Object_print(void *obj) {
@@ -191,6 +198,7 @@ void gy_Object_print(void *obj) {
     y_print(" is pointer to ", 0);
   }
   y_print("gy object name: ", 0);
+  if (!o->info) return;
   y_print(g_base_info_get_name(o->info), 0);
   y_print(", type: ", 0);
   y_print(g_info_type_to_string(g_base_info_get_type (o->info)), 0);
@@ -275,7 +283,6 @@ gy_Object_extract(void *obj, char * name)
       GISignalInfo * ci=NULL ;
       gint i;
 
-      gboolean tfound=0;
       for (i=0; i<nc; ++i) {
 	ci = g_object_info_get_signal(o->info, i);
 	if (!strcmp(g_base_info_get_name (ci), name)) {
@@ -300,8 +307,8 @@ gy_Object_extract(void *obj, char * name)
 }
 
 void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
-  gint alen;
-  GIArrayType atype;
+  //gint alen;
+  //GIArrayType atype;
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
   switch(type) {
@@ -316,10 +323,11 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     break;
   case GI_TYPE_TAG_UTF8:
     arg->v_string=ygets_q(iarg);
+    fprintf(stderr, "argument: %s\n", arg->v_string);
     break;
   case GI_TYPE_TAG_ARRAY:
-    alen=g_type_info_get_array_length(info);
-    atype=g_type_info_get_array_type (info);
+    //alen=g_type_info_get_array_length(info);
+    //atype=g_type_info_get_array_type (info);
     switch (yarg_number(iarg)) {
     case 0:
       if (yarg_string(iarg)) arg->v_pointer=ygeta_q(iarg, 0, 0);
@@ -343,11 +351,26 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
-      /*
     case GI_INFO_TYPE_STRUCT:
-      ;
+      {
+	GType g_type=
+	  g_registered_type_info_get_g_type ( (GIRegisteredTypeInfo *) itrf);
+	if (yarg_nil(iarg)) {
+	  arg->v_pointer = NULL;
+	  break;
+	}
+	if (g_type_is_a (g_type, G_TYPE_VALUE)) {
+	  GValue val=G_VALUE_INIT;
+	  // should check type passed from yorick!
+	  GObject * obj = yget_gy_Object(iarg)->object;
+	  g_value_init (&val, G_TYPE_OBJECT );
+	  g_value_set_object(&val, obj);
+	  arg->v_pointer = &val;
+	  break;
+	}
+      }
+      arg->v_pointer=yget_gy_Object(iarg)->object;
       break;
-      */
     case GI_INFO_TYPE_ENUM:
       switch (g_enum_info_get_storage_type (itrf)) {
       case GI_TYPE_TAG_UINT32:
@@ -362,7 +385,8 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
       }
       break;
     case GI_INFO_TYPE_OBJECT:
-      arg->v_pointer=yget_gy_Object(iarg)->object;
+      if (yarg_nil(iarg)) arg->v_pointer=NULL;
+      else arg->v_pointer=yget_gy_Object(iarg)->object;
       break;
     default:
       y_errorn("Unimplemented GIArgument interface type %ld",
@@ -417,12 +441,19 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
       outObject = ypush_gy_Object();
       outObject -> repo= o -> repo;
       outObject -> object = arg -> v_pointer;
+      if (!outObject->object)
+	y_warn("object is NULL!");
       g_object_ref(outObject -> object);
 
       if (G_IS_OBJECT(outObject -> object)) {
 	outObject->info =
 	  g_irepository_find_by_gtype(o -> repo,
 				      G_OBJECT_TYPE(outObject->object));
+	if (!outObject->info) {
+	  y_warn("unable to find object type !");
+	  outObject -> info = info;
+	  g_base_info_ref(info);
+	}
       } else {
 	outObject -> info = info;
 	g_base_info_ref(info);
@@ -444,6 +475,49 @@ gy_Object_eval(void *obj, int argc)
 {
   gy_Object* o = (gy_Object*) obj;
   GError * err = NULL;
+
+  if (GI_IS_STRUCT_INFO(o->info)){
+    gy_Object* out = ypush_gy_Object(0);
+    if(!o->object)
+      out->object=g_malloc0(g_struct_info_get_size (o->info));
+    else
+      out->object=o->object;
+    out->repo=o->repo;
+    out->info=o->info;
+    g_base_info_ref(o->info);
+
+    int iarg = argc; // last is newly pushed reference
+    long index;
+    char * name;
+    gint i, n;
+    GIBaseInfo * cur=NULL;
+    GIArgument rarg;
+    GITypeInfo * ti;
+
+    if (argc==1 && yarg_nil(iarg)) return;
+
+    while (iarg > 0) { // 0 is output
+      index=yarg_key(iarg);
+      if (index<0) y_error("positional argument at the wrong place!");
+      name=yfind_name(index);
+      n = g_struct_info_get_n_fields(o->info);
+      for (i=0; i<n; ++i) {
+	cur = g_struct_info_get_field (o->info, i);
+	if (!strcmp(name, g_base_info_get_name(cur))) {
+	  ti = g_field_info_get_type(cur);
+	  gy_Argument_getany(&rarg, ti, --iarg);
+	  if (!g_field_info_set_field(cur, out->object, &rarg))
+	    y_error("set field failed");
+	  break;
+	}
+      }
+      if (i==n) y_error("field not found!");
+      --iarg;
+    }
+    
+    return;
+  }
+
   if (!GI_IS_CALLABLE_INFO(o->info))
     y_error("Object is not callable");
 
@@ -508,7 +582,7 @@ gy_Object_eval(void *obj, int argc)
   if (feholdexcept(&fenv_in)) y_error("fenv error");
 
 
-  struct sigaction act, *oldact;
+  struct sigaction act, *oldact=NULL;
   act.sa_handler=&gy_sa_handler;
   sigemptyset(&act.sa_mask);
   act.sa_flags=0;
@@ -603,6 +677,7 @@ Y_gy_require(int argc)
   if (!tl->typelib) y_error(err->message);
 }
 
+void
 Y_gy_list_namespace(int argc) {
   if (argc!=1) y_error("gy_list_namespace takes exactly 1 argument");
   char * name =NULL;
@@ -637,6 +712,7 @@ Y_gy_list_namespace(int argc) {
   }
 }
 
+void
 Y_gy_list_object(int argc) {
   gy_Object * o = yget_gy_Object(0);
     printf("gy object name: %s, type: %s, namespace: %s\n",
@@ -647,8 +723,22 @@ Y_gy_list_object(int argc) {
     printf("with object at %p\n", o->object);
     printf("Object type: %s\n", G_OBJECT_TYPE_NAME(o->object));
   }
-  if (GI_IS_ENUM_INFO(o->info)) {
-    gint64 wtype=-1;
+  if (GI_IS_STRUCT_INFO(o->info)) {
+    gint i, n = g_struct_info_get_n_fields(o->info);
+    GIBaseInfo * cur=NULL;
+    for (i=0; i<n; ++i) {
+      cur = g_struct_info_get_field (o->info, i);
+      printf("Field #%d=%s\n", i, g_base_info_get_name(cur));
+      g_base_info_unref(cur);
+    }
+    n = g_struct_info_get_n_methods(o->info);
+    for (i=0; i<n; ++i) {
+      cur = g_struct_info_get_method (o->info, i);
+      printf("Field #%d=%s\n", i, g_base_info_get_name(cur));
+      g_base_info_unref(cur);
+    }
+    
+  } else if (GI_IS_ENUM_INFO(o->info)) {
     gint nc = g_enum_info_get_n_values (o->info);
     GIValueInfo * ci ;
     gint i;
@@ -720,4 +810,18 @@ Y_gy_signal_connect(int argc) {
 		    G_CALLBACK(&gy_callback),
 		    NULL);
   ypush_nil();
+}
+
+//// hack, should be done from gi
+void
+Y_gy_xid(int argc) {
+  gy_Object * o = yget_gy_Object(0);
+  GObject * ptr = o->object;
+  if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
+  GValue val = G_VALUE_INIT;
+  g_value_init(&val, G_TYPE_OBJECT);
+  g_object_get_property(ptr, "window", &val);
+  GdkWindow * win = g_value_get_object(&val);
+  if (!win) y_error("Cannot get Gdk window");
+  ypush_long(GDK_WINDOW_XID(win));
 }
