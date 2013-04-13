@@ -204,3 +204,5 @@ extern gy_xid;
      
    SEE ALSO: gy, gy_signal_connect, window
  */
+
+extern gy_GdkEventButton;

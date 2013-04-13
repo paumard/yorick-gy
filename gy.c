@@ -29,6 +29,9 @@
 #include <string.h>
 #include <signal.h>
 
+static gboolean _gy_debug=1;
+#define GY_DEBUG(a) if (_gy_debug) fprintf(stderr, "GY DEBUG: " a);
+
 typedef struct _gy_Object {
   GIBaseInfo * info;
   GObject * object;
@@ -321,6 +324,9 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
   case GI_TYPE_TAG_INT32:
     arg->v_int32=(gint32)ygets_l(iarg);
     break;
+  case GI_TYPE_TAG_DOUBLE:
+    arg->v_double=ygets_d(iarg);
+    break;
   case GI_TYPE_TAG_UTF8:
     arg->v_string=ygets_q(iarg);
     fprintf(stderr, "argument: %s\n", arg->v_string);
@@ -373,6 +379,9 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
       break;
     case GI_INFO_TYPE_ENUM:
       switch (g_enum_info_get_storage_type (itrf)) {
+      case GI_TYPE_TAG_INT32:
+	arg->v_int32=(gint32)ygets_l(iarg);
+	break;
       case GI_TYPE_TAG_UINT32:
 	arg->v_uint32=(guint32)ygets_l(iarg);
 	break;
@@ -407,10 +416,32 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
   gy_Object * outObject=NULL;
 
   // const char * nspace, * name_with_namespace, * name;
-
+  fprintf (stderr, "ici\n");
   switch(type) {
   case GI_TYPE_TAG_VOID: 
-    ypush_nil();
+    fprintf (stderr, "la\n");
+    if (arg->v_pointer) {
+      fprintf(stderr, "not nil\n");
+      outObject = ypush_gy_Object();
+      outObject -> repo= o -> repo;
+      outObject -> object = arg -> v_pointer;
+
+      if (G_IS_OBJECT(outObject -> object)) {
+	g_object_ref(outObject -> object);
+	outObject->info =
+	  g_irepository_find_by_gtype(o -> repo,
+				      G_OBJECT_TYPE(outObject->object));
+	if (!outObject->info) {
+	  y_warn("unable to find object type !");
+	  outObject -> info = info;
+	  g_base_info_ref(info);
+	}
+      } else {
+	outObject -> info = info;
+	g_base_info_ref(info);
+      }
+
+    } else    ypush_nil();
     break;
   case GI_TYPE_TAG_BOOLEAN:
     ypush_long(arg->v_boolean);
@@ -418,14 +449,25 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
   case GI_TYPE_TAG_UINT32:
     ypush_long(arg->v_int32);
     break;
+  case GI_TYPE_TAG_DOUBLE:
+    fprintf(stderr, "push double... ");
+    ypush_double(arg->v_double);
+    fprintf(stderr, "%g\n", arg->v_double);
+    break;
   case GI_TYPE_TAG_UTF8:
     *ypush_q(0) = p_strcpy(arg->v_string);
     break;
   case GI_TYPE_TAG_INTERFACE:
+    fprintf(stderr, "Out argument is interface\n");
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
     case GI_INFO_TYPE_ENUM:
+    fprintf(stderr, "Out argument is enum\n");
       switch (g_enum_info_get_storage_type (itrf)) {
+      case GI_TYPE_TAG_INT32:
+	ypush_long(arg->v_int32);
+	fprintf(stderr, "%d\n", arg->v_int32);
+	break;
       case GI_TYPE_TAG_UINT32:
 	ypush_long(arg->v_uint32);
 	break;
@@ -473,6 +515,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 void
 gy_Object_eval(void *obj, int argc)
 {
+  fprintf(stderr, "in gy_Object_eval\n");
   gy_Object* o = (gy_Object*) obj;
   GError * err = NULL;
 
@@ -493,21 +536,52 @@ gy_Object_eval(void *obj, int argc)
     GIBaseInfo * cur=NULL;
     GIArgument rarg;
     GITypeInfo * ti;
+    gboolean getting=0;
 
     if (argc==1 && yarg_nil(iarg)) return;
 
-    while (iarg > 0) { // 0 is output
+    int lim=0;
+    while (iarg > lim) { // 0 is output
       index=yarg_key(iarg);
-      if (index<0) y_error("positional argument at the wrong place!");
-      name=yfind_name(index);
+      fprintf (stderr, "index: %ld\n", index);
+      if (index<0) {
+	getting=1;
+	index=yget_ref(iarg);
+	if (index<0) name = ygets_q(iarg);
+	else name=yfind_name(index);
+      } else {
+	getting=0;
+	name=yfind_name(index);
+      }
+      fprintf(stderr, "field: %s\n",name);
       n = g_struct_info_get_n_fields(o->info);
       for (i=0; i<n; ++i) {
+	fprintf (stderr, "i=%d/%d\n", i, n);
 	cur = g_struct_info_get_field (o->info, i);
+	fprintf(stderr, "comparing %s with %s\n", name, g_base_info_get_name(cur));
 	if (!strcmp(name, g_base_info_get_name(cur))) {
+	  GY_DEBUG("found it\n");
 	  ti = g_field_info_get_type(cur);
-	  gy_Argument_getany(&rarg, ti, --iarg);
-	  if (!g_field_info_set_field(cur, out->object, &rarg))
-	    y_error("set field failed");
+	  if (getting) { //y_error("Getting");
+	    GY_DEBUG("getting\n");
+	    long idx = yget_ref(iarg-1);
+
+	    fprintf(stderr, "Getting field... ");
+	    gboolean success=g_field_info_get_field(cur, o->object, &rarg);
+	    fprintf(stderr, "done.\n");
+
+	    if (!success)
+	      y_error("get field failed");
+
+	    gy_Argument_pushany(&rarg, ti, o);
+	    yput_global(idx, 0);
+	    ++lim;
+	    //	    yarg_drop(0);
+	  } else {
+	    gy_Argument_getany(&rarg, ti, --iarg);
+	    if (!g_field_info_set_field(cur, out->object, &rarg))
+	      y_error("set field failed");
+	  }
 	  break;
 	}
       }
@@ -788,9 +862,11 @@ Y_gy_list_object(int argc) {
   }
 }
 
-void gy_callback(GObject* obj, ...) {
+void gy_callback(GObject* obj, void* data, ...) {
   const char * cmd = g_object_get_data(obj, "gy_callback");
   printf("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
+  g_object_set_data(obj, "gy_data", data);
+  fprintf(stderr, "Event received: %d\n", ((GdkEventAny*) data )-> type);
   long dims[2]={1,1};
   *ypush_q(dims) = p_strcpy(cmd);
   yexec_include(0,1);
@@ -824,4 +900,18 @@ Y_gy_xid(int argc) {
   GdkWindow * win = g_value_get_object(&val);
   if (!win) y_error("Cannot get Gdk window");
   ypush_long(GDK_WINDOW_XID(win));
+}
+
+void
+Y_gy_GdkEventButton(int argc) {
+  gy_Object * o = yget_gy_Object(0);
+  GObject * ptr = o->object;
+  if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
+  gy_Object * out = ypush_gy_Object();
+  out -> repo = o -> repo;
+  out -> info = g_irepository_find_by_name(out->repo,
+					   "Gdk",
+					   "EventButton");
+  out -> object = g_object_get_data(ptr, "gy_data");
+
 }
