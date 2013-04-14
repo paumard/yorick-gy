@@ -43,6 +43,7 @@ typedef struct _gy_Object {
 } gy_Object;
 gy_Object* yget_gy_Object(int);
 gy_Object* ypush_gy_Object();
+void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o);
 
 typedef struct _gy_Repository {
   GIRepository * repo;
@@ -108,6 +109,17 @@ gy_Typelib_extract(void *obj, char * name)
   gy_Object * o = ypush_gy_Object();
   o->info = info;
   o->repo = tl->repo;
+
+  if (GI_IS_CONSTANT_INFO(o->info)) {
+    GY_DEBUG("Extracted object is constant\n");
+    GIArgument rarg;
+    GITypeInfo * retinfo = g_constant_info_get_type(o->info);
+    gint retval = g_constant_info_get_value(o->info, &rarg);
+    yarg_drop(1);
+    gy_Argument_pushany(&rarg, retinfo, o);
+    g_base_info_unref(retinfo);
+  }
+
 }
 
 gy_Typelib* yget_gy_Typelib(int iarg) {
@@ -162,6 +174,7 @@ gy_Repository_extract(void *obj, char * name)
 					   0,
 					   &err);
   if (!tl->typelib) y_error(err->message);
+
 }
 
 gy_Repository* yget_gy_Repository(int iarg) {
@@ -463,8 +476,11 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
   case GI_TYPE_TAG_BOOLEAN:
     ypush_long(arg->v_boolean);
     break;
-  case GI_TYPE_TAG_UINT32:
+  case GI_TYPE_TAG_INT32:
     ypush_long(arg->v_int32);
+    break;
+  case GI_TYPE_TAG_UINT32:
+    ypush_long(arg->v_uint32);
     break;
   case GI_TYPE_TAG_DOUBLE:
     GY_DEBUG("push double... ");
@@ -543,6 +559,10 @@ gy_Object_eval(void *obj, int argc)
   GY_DEBUG("in gy_Object_eval\n");
   gy_Object* o = (gy_Object*) obj;
   GError * err = NULL;
+
+  if (!o -> info)
+    y_error("Object lacks type information. "
+	    "Please cast it appropriately");
 
   if (GI_IS_STRUCT_INFO(o->info)){
     gy_Object* out = ypush_gy_Object(0);

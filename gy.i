@@ -24,6 +24,16 @@ local gy;
     gy is a Yorick plug-in around GObject-introspection. It can
     notably be used to create Gtk GUIs from within Yorick.
 
+
+   PROVIDED APPLICATIONS
+    gy comes with a few sample GUI utilities:
+    
+     - gyterm is a command line in a Gtk window. It is useful for
+       keeping a Yorick command line while another GUI is running.
+
+     - gycmap is a wrapper around cmap.
+
+   DETAILS
     Any library providing gobject-introspection can be accessed
     through this plug-in, as long as the gobject-introspection
     repository (GIR) files are installed on the system: under certain
@@ -60,7 +70,7 @@ local gy;
    EXAMPLE:
     Gtk=gy.Gtk;
     Gtk.init_check(0,);
-    gy_setlocale;
+    gy_setlocale("C");
     win = Gtk.Window.new(Gtk.WindowType.toplevel);
     button = Gtk.Button.new_with_label("Hello World!");
     win.add(button);
@@ -73,7 +83,7 @@ local gy;
     noop, win.show_all();
     noop, Gtk.main();
     
-   SEE ALSO: gyterm
+   SEE ALSO: gyterm, gycmap
  */
 
 extern gy_init;
@@ -146,27 +156,71 @@ extern gy_signal_connect_expr;
 
 func __gyterm_init(void) {
   require,  "string.i";
-  extern __gyterm_initialized, __gyterm_win, __gyterm_entry;
+  extern __gyterm_initialized, __gyterm_win;
   Gtk=gy.Gtk;
   Gtk.init_check(0,);
   gy_setlocale;
   __gyterm_win = Gtk.Window.new(Gtk.WindowType.toplevel);
-  gy_signal_connect_expr(__gyterm_win, "delete_event", "noop, __gyterm_suspend()");
+  noop, __gyterm_win.set_title("Yorick command line");
+  gy_gtk_window_suspend, __gyterm_win;
   __gyterm_entry = Gtk.Entry.new();
-  gy_signal_connect_expr, __gyterm_entry, "activate", "__gyterm_entry_activated";
+  gy_gtk_entry_include, __gyterm_entry;
   noop, __gyterm_win.add(__gyterm_entry);
+  noop, __gyterm_entry.set_width_chars(80);
   __gyterm_initialized=1;
 }  
 
 func __gyterm_idler(void) {
-  gy.Gtk.main();
+  noop, gy.Gtk.main();
 }
 
-func __gyterm_entry_activated(void) {
+func __gyterm_entry_activated(widget, user_data) {
   noop, gy.Gtk.main_quit();
   set_idler, __gyterm_idler;
-  cmd=__gyterm_entry.get_text();
+  cmd=widget.get_text();
+  noop, widget.set_text("");
+  if (cmd != "") include, strchar("if (catch(-1)) {return;} "+cmd), 1;
+}
+
+func __gyterm_key_pressed(widget, event) {
+  ev = gy.Gdk.EventKey(event);
+  ev, keyval, keyval;
+  if (keyval!=gy.Gdk.KEY_Return) return;
+  noop, gy.Gtk.main_quit();
+  set_idler, __gyterm_idler;
+  cmd=widget.get_text();
   include, strchar("if (catch(-1)) {return;} "+cmd), 1;
+}
+
+func gy_gtk_entry_include(widget) {
+/* DOCUMENT gy_gtk_entry_include, entry_widget
+   
+    Makes entry_widget mimick gyterm behavior.
+
+   EXAMPLE
+    entry=gy.Gtk.Entry.new();
+    gy_gtk_entry_include, entry;
+
+   SEE ALSO: gy, gyterm, gy_gtk_window_suspend
+ */
+  gy_signal_connect, widget, "activate", "__gyterm_entry_activated";
+  noop, widget.set_placeholder_text("Yorick command");
+  noop, widget.set_tooltip_text("Yorick command");
+}
+
+func gy_gtk_window_suspend(window)
+/* DOCUMENT gy_gtk_window_suspend, window
+   
+    Connect a standard handler to the delete event of WINDOW.
+    
+   EXAMPLE
+    win=gy.Gtk.Window.new();
+    gy_gtk_window_suspend, win;
+
+   SEE ALSO: gy, gyterm, gy_gtk_entry_include
+ */
+{
+  gy_signal_connect, window, "delete_event", "__gyterm_suspend";
 }
 
 func __gyterm_suspend(widget, event) {
@@ -183,15 +237,180 @@ func gyterm(cmd)
      If you want to keep a command line around while launching another
      gy-based, blocking GUI, simpy launch it from gyterm.
 
-   SEE ALSO: gy
+     If you want to embed gyterm in another GUI, see
+     gy_gtk_entry_include.
+
+   SEE ALSO: gy, gy_gtk_entry_include
  */
 {
-  extern __gyterm_initialized;
+  extern __gyterm_initialized, __gyterm_win;
   if (!__gyterm_initialized) __gyterm_init;
   noop, __gyterm_win.show_all();
-  if (cmd) __gyterm_entry.set_text(cmd);
+  if (cmd) include, [cmd], 1; 
+  else noop, gy.Gtk.main();
+}
+
+/// gycmap: a GUI for cmap
+func __gycmap_init(void) {
+  require, "pathfun.i";
+  extern __gycmap_initialized, __gycmap_builder, __gycmap_win, __gycmap_ebox,
+    __gycmap_gist_img, __gycmap_msh_img, __gycmap_mpl_img, __gycmap_cmd,
+    __gycmap_gpl_img, __gycmap_gmt_img, __gycmap_cur_img,
+    __gycmap_div_img, __gycmap_seq_img, __gycmap_qual_img,
+    __gycmap_cur_names, __gycmap_gist_names;
+
+  gist_png = find_in_path("gist-cmap.png", takefirst=1,
+                          path=pathform(_(get_cwd(),
+                                          _(Y_SITES,
+                                            Y_SITE)+"data/")));
+  png_dir=dirname(gist_png);
+  
+  glade = find_in_path("gycmap.xml", takefirst=1,
+                       path=pathform(_(get_cwd(),
+                                       _(Y_SITES,
+                                         Y_SITE)+"glade/")));
+ 
+  
+  noop, gy.Gtk.init(0,);
+  gy_setlocale;
+  __gycmap_gist_img = gy.Gtk.Image.new();
+  noop, __gycmap_gist_img.set_from_file(gist_png);
+  __gycmap_gist_names=
+    ["gray", "yarg", "heat", "earth", "stern", "rainbow", "ncar"];
+
+  __gycmap_msh_img = gy.Gtk.Image.new();
+  noop, __gycmap_msh_img.set_from_file(png_dir+"/msh-cmap.png");
+
+  __gycmap_mpl_img = gy.Gtk.Image.new();
+  noop, __gycmap_mpl_img.set_from_file(png_dir+"/mpl-cmap.png");
+   
+  __gycmap_gpl_img = gy.Gtk.Image.new();
+  noop, __gycmap_gpl_img.set_from_file(png_dir+"/gpl-cmap.png");
+
+  __gycmap_gmt_img = gy.Gtk.Image.new();
+  noop, __gycmap_gmt_img.set_from_file(png_dir+"/gmt-cmap.png");
+
+  __gycmap_div_img = gy.Gtk.Image.new();
+  noop, __gycmap_div_img.set_from_file(png_dir+"/cbc-div-cmap.png");
+
+  __gycmap_seq_img = gy.Gtk.Image.new();
+  noop, __gycmap_seq_img.set_from_file(png_dir+"/cbc-seq-cmap.png");
+
+  __gycmap_qual_img = gy.Gtk.Image.new();
+  noop, __gycmap_qual_img.set_from_file(png_dir+"/cb-qual-cmap.png");
+  
+  __gycmap_builder = gy.Gtk.Builder.new();
+  noop, __gycmap_builder.add_from_file(glade);
+  __gycmap_win = __gycmap_builder.get_object("window1");
+  __gycmap_ebox = __gycmap_builder.get_object("eventbox");
+
+  noop, __gycmap_ebox.add(__gycmap_gist_img);
+  __gycmap_cur_img = __gycmap_gist_img;
+  __gycmap_cur_names = __gycmap_gist_names;
+  __gycmap_cmd=gistct;
+  
+  combo=__gycmap_builder.get_object("combobox");
+  noop, combo.set_active_id("gist");
+  gy_signal_connect, combo, "changed", "__gycmap_combo_changed";
+  
+  gy_signal_connect, __gycmap_ebox, "button-press-event", "__gycmap_callback";
+  gy_gtk_window_suspend, __gycmap_win;
+  noop, __gycmap_win.set_title("Yorick color table chooser");
+
+  gy_gtk_entry_include, __gycmap_builder.get_object("entry");
+  __gycmap_initialized=1;
+}
+
+func __gycmap_callback(widget, event) {
+  extern __gycmap_cur_names;
+  ev = gy.Gdk.EventButton(event);
+  ev, x, x, y, y;
+  __gycmap_cmd, __gycmap_cur_names(long(y/19)+1);
+}
+
+func __gycmap_combo_changed(widget, event) {
+  extern __gycmap_cur_img, __gycmap_cur_names, __gycmap_cmd;
+
+  lst = widget.get_active_id();
+  noop, __gycmap_ebox.remove(__gycmap_cur_img);
+  if (lst == "gist") {
+    __gycmap_cur_img=__gycmap_gist_img;
+    __gycmap_cur_names=__gycmap_gist_names;
+    __gycmap_cmd=gistct;
+  } else if (lst == "msh") {
+    __gycmap_cur_img=__gycmap_msh_img;
+    __gycmap_cur_names=
+      ["coolwarm", "blutan", "ornpur", "grnred",
+       "purple", "blue", "green", "red", "brown"];
+    __gycmap_cmd=mshct;
+  } else if (lst == "mpl") {
+    __gycmap_cur_img=__gycmap_mpl_img;
+    __gycmap_cur_names=
+      ["binary", "gray", "bone", "pink", "copper", "winter",
+       "spring", "summer", "autumn", "hot", "afmhot", "coolwarm",
+       "cool", "rainbow", "terrain", "jet", "spectral", "hsv",
+       "flag", "prism", "seismic", "bwr", "brg"];    
+    __gycmap_cmd=mplct;
+  } else if (lst == "gmt") {
+    __gycmap_cur_img=__gycmap_gmt_img;
+    __gycmap_cur_names=
+      ["cool", "copper", "cyclic", "drywet", "gebco", "globe", "gray", "haxby",
+       "hot", "jet", "nighttime", "no_green", "ocean", "paired", "panoply",
+       "polar", "rainbow", "red2green", "relief", "sealand", "seis", "split",
+       "topo", "wysiwyg"];
+    __gycmap_cmd=gmtct;
+  } else if (lst == "gpl") {
+    __gycmap_cur_img=__gycmap_gpl_img;
+    __gycmap_cur_names=
+      ["ocean", "gnu_hot", "gnuplot", "gnuplot2",
+       "gnuplot3", "gnuplot4", "gnuplot5"];
+    __gycmap_cmd=cmap;
+  } else if (lst == "cb-seq") {
+    __gycmap_cur_img=__gycmap_seq_img;
+    __gycmap_cur_names=
+      ["Greys", "Purples", "Blues", "Greens", "Oranges", "Reds",
+       "PuBu", "PuBuGn", "PuRd", "BuGn", "BuPu", "GnBu", "YlGn",
+       "YlGnBu", "YlOrBr", "YlOrRd", "OrRd", "RdPu"];
+    __gycmap_cmd=cmap;
+  } else if (lst == "cb-div") {
+    __gycmap_cur_img=__gycmap_div_img;
+    __gycmap_cur_names=
+      ["BrBG", "PRGn", "PiYG", "PuOr", "RdBu",
+       "RdGy", "RdYlBu", "RdYlGn", "Spectral"];
+    __gycmap_cmd=cmap;
+  } else if (lst == "cb-qual") {
+    __gycmap_cur_img=__gycmap_qual_img;
+    __gycmap_cur_names=
+      ["Set1", "Pastel1", "Dark2", "Set2", "Pastel2",
+       "Set3", "Paired", "Accent"];
+    __gycmap_cmd=cmap;
+  } else error, "unrecognized colormap kind";
+  noop, __gycmap_ebox.add(__gycmap_cur_img);
+  noop, __gycmap_cur_img.show();
+}
+
+func gycmap(void)
+/* DOCUMENT gycmap
+   
+    A graphical wrapper around the cmap family of functions, gycmap
+    allows the user to interactively select a color table by viewing
+    sample colorbars and clicking on the bar of her choice. If an
+    image is displayed in the current Yorick graphic window, the new
+    colormap is applied immediately. cmap_test can be used for
+    displaying a test image.
+
+    gycmap requires a recent version of Yorick (from git, as of
+    2013-04).
+
+   SEE ALSO: cmap, cmap_test
+ */
+{
+  extern __gycmap_initialized, __gycmap_builder, __gycmap_win, __gycmap_ebox;
+  if (!__gycmap_initialized) __gycmap_init;
+  noop, __gycmap_win.show_all();
   noop, gy.Gtk.main();
 }
+
 
 /// hack: should be done from gi
 extern gy_xid;

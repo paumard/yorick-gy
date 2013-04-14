@@ -38,7 +38,7 @@ PKG_CLEAN=
 # autoload file for this package, if any
 PKG_I_START=
 # non-pkg.i include files for this package, if any
-PKG_I_EXTRA=gycmap.i
+PKG_I_EXTRA=
 
 # -------------------------------- standard targets and rules (in Makepkg)
 
