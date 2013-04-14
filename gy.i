@@ -53,23 +53,23 @@ local gy;
     Yorick prompt whil a GUI is running. To accomodate for this
     limitation, see gyterm.
 
-    Please use gy.Gtk.disable_setlocale() in any public code, else Gtk
-    will install the user locale which will break Yorick in countries
+    Please use gy_setlocale() in any public code, else Gtk will set
+    LC_NUMERIC the user locale which will break Yorick in countries
     where the decimal separator is not the English dot.
 
    EXAMPLE:
     Gtk=gy.Gtk;
-    Gtk.disable_setlocale();
     Gtk.init_check(0,);
+    gy_setlocale;
     win = Gtk.Window.new(Gtk.WindowType.toplevel);
     button = Gtk.Button.new_with_label("Hello World!");
     win.add(button);
-    gy_signal_connect, button, "clicked", "\"Hello World!\"";
+    gy_signal_connect_expr, button, "clicked", "\"Hello World!\"";
     func winhide(void) {
     noop, win.hide();
     noop, Gtk.main_quit();
     }
-    gy_signal_connect(win, "delete_event", "noop, winhide()");
+    gy_signal_connect_expr(win, "delete_event", "noop, winhide()");
     noop, win.show_all();
     noop, Gtk.main();
     
@@ -116,7 +116,10 @@ extern gy_list_object;
  */
 
 extern gy_signal_connect;
+extern gy_signal_connect_expr;
 /* DOCUMENT gy_connect_signal, object, signal, handler
+         or gy_connect_signal_expr, object, signal, handler
+
     Connect signal to signal handler
 
    ARGUMENTS:
@@ -124,7 +127,12 @@ extern gy_signal_connect;
              gy.Gtk.Entry.
     signal:  the signal name, e.g. "activated".
     handler: the Yorick command to be executed when the object
-             receives the signal.
+             receives the signal. HANDLER will be called like:
+               include, ["noop, " + handler + "(par1, ...,  parn)"], 1
+             where par1 to parn are the parameters described in the C
+             documentation for SIGNAL.
+    expr:    a free form yorick command. It will be called like:
+               include, [expr], 1
              
    EXAMPLE:
     See gy.
@@ -140,12 +148,12 @@ func __gyterm_init(void) {
   require,  "string.i";
   extern __gyterm_initialized, __gyterm_win, __gyterm_entry;
   Gtk=gy.Gtk;
-  Gtk.disable_setlocale();
   Gtk.init_check(0,);
+  gy_setlocale;
   __gyterm_win = Gtk.Window.new(Gtk.WindowType.toplevel);
-  gy_signal_connect(__gyterm_win, "delete_event", "noop, __gyterm_suspend()");
+  gy_signal_connect_expr(__gyterm_win, "delete_event", "noop, __gyterm_suspend()");
   __gyterm_entry = Gtk.Entry.new();
-  gy_signal_connect, __gyterm_entry, "activate", "__gyterm_entry_activated";
+  gy_signal_connect_expr, __gyterm_entry, "activate", "__gyterm_entry_activated";
   noop, __gyterm_win.add(__gyterm_entry);
   __gyterm_initialized=1;
 }  
@@ -161,8 +169,8 @@ func __gyterm_entry_activated(void) {
   include, strchar("if (catch(-1)) {return;} "+cmd), 1;
 }
 
-func __gyterm_suspend(void) {
-  noop, __gyterm_win.hide();
+func __gyterm_suspend(widget, event) {
+  noop, widget.hide();
   noop, gy.Gtk.main_quit();
 }
 
@@ -211,4 +219,23 @@ extern gy_data;
      Get data set by the C callback on object. Often the GdkEvent if
      object is a GtkWidget. This is a temporary hack.
      
+ */
+
+extern gy_debug;
+/* DOCUMENT mode = gy_debug();
+         or gy_debug, mode;
+    Get or set gy debug mode.
+   SEE ALSO: gy
+*/
+
+extern gy_setlocale;
+/* DOCUMENT gy_setlocale, [category,] locale
+         or locale=gy_setlocale()
+
+     Get or set locale used in the Yorick process.
+
+     Allways resets LC_NUMERIC to "C" as other values may break
+     Yorick.
+
+   SEE ALSO: gy
  */

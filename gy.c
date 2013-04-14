@@ -28,9 +28,11 @@
 #include <fenv.h>
 #include <string.h>
 #include <signal.h>
+#include <locale.h>
 
-static gboolean _gy_debug=1;
-#define GY_DEBUG(a) if (_gy_debug) fprintf(stderr, "GY DEBUG: " a);
+static gboolean _gy_debug=0;
+#define GY_DEBUG( ... ) \
+  if (_gy_debug) fprintf(stderr, "GY DEBUG: " __VA_ARGS__ );
 
 typedef struct _gy_Object {
   GIBaseInfo * info;
@@ -190,18 +192,23 @@ void gy_Object_free(void *obj) {
   if (o->object) {
     // I don't know how reference counting works here...
     // if (GI_IS_STRUCT_INFO(o->info)) g_free(o->object);
-    if (GI_IS_OBJECT_INFO(o->info)) g_object_unref(o->object);
+    if (o->info && GI_IS_OBJECT_INFO(o->info)) g_object_unref(o->object);
   }
 }
 
 void gy_Object_print(void *obj) {
   gy_Object* o = (gy_Object*) obj;
+  char spointer[40] = {0};
   if (o->object) {
-    printf("%p", o->object);
+    sprintf(spointer, "%p", o->object);
+    y_print(spointer, 0);
     y_print(" is pointer to ", 0);
   }
   y_print("gy object name: ", 0);
-  if (!o->info) return;
+  if (!o->info) {
+    y_print("(unknown)", 0);
+    return;
+  }
   y_print(g_base_info_get_name(o->info), 0);
   y_print(", type: ", 0);
   y_print(g_info_type_to_string(g_base_info_get_type (o->info)), 0);
@@ -235,7 +242,7 @@ gy_Object_extract(void *obj, char * name)
   }
   if (GI_IS_OBJECT_INFO(o->info)) {
 
-    printf("Looking for symbol %s in %s\n",
+    GY_DEBUG("Looking for symbol %s in %s\n",
 	   name,
 	   g_base_info_get_name(o->info));
 
@@ -247,13 +254,13 @@ gy_Object_extract(void *obj, char * name)
 	   (next = g_object_info_get_parent(cur))) {
       g_base_info_unref(cur);
       cur = next;
-      printf("Looking for symbol %s in parent %s\n",
+      GY_DEBUG("Looking for symbol %s in parent %s\n",
 	     name,
 	     g_base_info_get_name(cur));
       info = g_object_info_find_method (cur, name);
     }
     if (info) {
-      printf("Symbol %s found in %s\n",
+      GY_DEBUG("Symbol %s found in %s\n",
 	     name,
 	     g_base_info_get_name(cur));
       g_base_info_unref(cur);
@@ -274,14 +281,14 @@ gy_Object_extract(void *obj, char * name)
     if (!strncmp(name, sigprefix, sigprefixlen)) {
       name += sigprefixlen;
 
-      printf("Looking for signal %s in %s\n",
+      GY_DEBUG("Looking for signal %s in %s\n",
 	     name,
 	     g_base_info_get_name(o->info));
   
 
       gint nc = g_object_info_get_n_signals (o->info);
 
-      printf("%s has %d signals\n", g_base_info_get_name(o->info), nc);
+      GY_DEBUG("%s has %d signals\n", g_base_info_get_name(o->info), nc);
 
       GISignalInfo * ci=NULL ;
       gint i;
@@ -329,7 +336,7 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     break;
   case GI_TYPE_TAG_UTF8:
     arg->v_string=ygets_q(iarg);
-    fprintf(stderr, "argument: %s\n", arg->v_string);
+    GY_DEBUG( "argument: %s\n", arg->v_string);
     break;
   case GI_TYPE_TAG_ARRAY:
     //alen=g_type_info_get_array_length(info);
@@ -417,14 +424,17 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 
   // const char * nspace, * name_with_namespace, * name;
   switch(type) {
-  case GI_TYPE_TAG_VOID: 
+  case GI_TYPE_TAG_VOID:
+    GY_DEBUG("Out argument is void\n")
+    /*
     if (arg->v_pointer) {
+      GY_DEBUG("Out argument is not (nil)\n");
       outObject = ypush_gy_Object();
       outObject -> repo= o -> repo;
       outObject -> object = arg -> v_pointer;
 
       if (G_IS_OBJECT(outObject -> object)) {
-      fprintf(stderr, "plut\n");
+	GY_DEBUG("plut\n");
 	g_object_ref(outObject -> object);
 	outObject->info =
 	  g_irepository_find_by_gtype(o -> repo,
@@ -435,12 +445,17 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 	  g_base_info_ref(info);
 	}
       } else {
-	fprintf(stderr, "plat\n");
+	GY_DEBUG("plat\n");
 	outObject -> info = info;
 	g_base_info_ref(info);
+	GY_DEBUG("plut\n");
       }
 
-    } else    ypush_nil();
+    } else {
+      GY_DEBUG("Out argument is (nil)\n");
+    */
+      ypush_nil();
+    //}
     break;
   case GI_TYPE_TAG_BOOLEAN:
     ypush_long(arg->v_boolean);
@@ -449,23 +464,23 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
     ypush_long(arg->v_int32);
     break;
   case GI_TYPE_TAG_DOUBLE:
-    fprintf(stderr, "push double... ");
+    GY_DEBUG("push double... ");
     ypush_double(arg->v_double);
-    fprintf(stderr, "%g\n", arg->v_double);
+    GY_DEBUG("%g\n", arg->v_double);
     break;
   case GI_TYPE_TAG_UTF8:
     *ypush_q(0) = p_strcpy(arg->v_string);
     break;
   case GI_TYPE_TAG_INTERFACE:
-    fprintf(stderr, "Out argument is interface\n");
+    GY_DEBUG("Out argument is interface\n");
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
     case GI_INFO_TYPE_ENUM:
-    fprintf(stderr, "Out argument is enum\n");
+    GY_DEBUG("Out argument is enum\n");
       switch (g_enum_info_get_storage_type (itrf)) {
       case GI_TYPE_TAG_INT32:
 	ypush_long(arg->v_int32);
-	fprintf(stderr, "%d\n", arg->v_int32);
+	GY_DEBUG("%d\n", arg->v_int32);
 	break;
       case GI_TYPE_TAG_UINT32:
 	ypush_long(arg->v_uint32);
@@ -521,7 +536,7 @@ yarg_gy_Object(int iarg)
 void
 gy_Object_eval(void *obj, int argc)
 {
-  fprintf(stderr, "in gy_Object_eval\n");
+  GY_DEBUG("in gy_Object_eval\n");
   gy_Object* o = (gy_Object*) obj;
   GError * err = NULL;
 
@@ -552,7 +567,7 @@ gy_Object_eval(void *obj, int argc)
     int lim=0;
     while (iarg > lim) { // 0 is output
       index=yarg_key(iarg);
-      fprintf (stderr, "index: %ld\n", index);
+      GY_DEBUG("index: %ld\n", index);
       if (index<0) {
 	getting=1;
 	index=yget_ref(iarg);
@@ -562,12 +577,12 @@ gy_Object_eval(void *obj, int argc)
 	getting=0;
 	name=yfind_name(index);
       }
-      fprintf(stderr, "field: %s\n",name);
+      GY_DEBUG("field: %s\n",name);
       n = g_struct_info_get_n_fields(o->info);
       for (i=0; i<n; ++i) {
-	fprintf (stderr, "i=%d/%d\n", i, n);
+	GY_DEBUG("i=%d/%d\n", i, n);
 	cur = g_struct_info_get_field (o->info, i);
-	fprintf(stderr, "comparing %s with %s\n", name, g_base_info_get_name(cur));
+	GY_DEBUG("comparing %s with %s\n", name, g_base_info_get_name(cur));
 	if (!strcmp(name, g_base_info_get_name(cur))) {
 	  GY_DEBUG("found it\n");
 	  ti = g_field_info_get_type(cur);
@@ -575,9 +590,9 @@ gy_Object_eval(void *obj, int argc)
 	    GY_DEBUG("getting\n");
 	    long idx = yget_ref(iarg-1);
 
-	    fprintf(stderr, "Getting field... ");
+	    GY_DEBUG("Getting field... ");
 	    gboolean success=g_field_info_get_field(cur, o->object, &rarg);
-	    fprintf(stderr, "done.\n");
+	    GY_DEBUG("done.\n");
 
 	    if (!success)
 	      y_error("get field failed");
@@ -616,9 +631,9 @@ gy_Object_eval(void *obj, int argc)
 
   if (GI_IS_FUNCTION_INFO(o->info) &&
       (g_function_info_get_flags (o->info) & GI_FUNCTION_IS_METHOD)) {
-    printf ("Object address: %p\n", o->object);
-    printf("Is object: %d\n", G_IS_OBJECT(o->object));
-    printf("Object type name: %s\n", G_OBJECT_TYPE_NAME(o->object));
+    GY_DEBUG("Object address: %p\n", o->object);
+    GY_DEBUG("Is object: %d\n", G_IS_OBJECT(o->object));
+    GY_DEBUG("Object type name: %s\n", G_OBJECT_TYPE_NAME(o->object));
     if (!o -> object) y_error("NULL pointer");
     in_args[0].v_pointer= o -> object;
     ++n_in;
@@ -683,11 +698,11 @@ gy_Object_eval(void *obj, int argc)
 
   fesetenv(&fenv_in);
   if (!success) {
-    fprintf(stderr, "here\n");
+    GY_DEBUG("here\n");
     y_error(err->message);
   }
 
-  printf("Function %s sucessfully called\n", g_base_info_get_name(o->info));
+  GY_DEBUG("Function %s successfully called\n", g_base_info_get_name(o->info));
 
   if (n_out)
     y_warn("unimplemented: positional out arguments");
@@ -701,11 +716,11 @@ gy_Object_eval(void *obj, int argc)
     gy_Object*out = yget_gy_Object(0);
     g_base_info_unref(out->info);
     const char * nspace = g_base_info_get_namespace (o->info);
-    printf("Namespace: %s\n", nspace);
+    GY_DEBUG("Namespace: %s\n", nspace);
     const char * name_with_namespace = G_OBJECT_TYPE_NAME(out->object);
-    printf("Name with namespace: %s\n", name_with_namespace);
+    GY_DEBUG("Name with namespace: %s\n", name_with_namespace);
     const char * name = name_with_namespace + strlen(nspace);
-    printf("Name without namespace: %s\n", name);
+    GY_DEBUG("Name without namespace: %s\n", name);
 
     out->info = g_irepository_find_by_name(NULL,
 					   nspace,
@@ -714,7 +729,9 @@ gy_Object_eval(void *obj, int argc)
     g_base_info_ref(out->info);
   }
   */
+  GY_DEBUG("g_base_info_unref(retinfo)... ");
   g_base_info_unref(retinfo); 
+  GY_DEBUG(" done.\n");
   g_free (in_args);
   g_free (out_args);
 
@@ -872,24 +889,105 @@ Y_gy_list_object(int argc) {
 }
 
 void gy_callback(GObject* obj, void* data, ...) {
-  const char * cmd = g_object_get_data(obj, "gy_callback");
-  printf("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
-  g_object_set_data(obj, "gy_data", data);
-  fprintf(stderr, "Event received: %d\n", ((GdkEventAny*) data )-> type);
+  const char * cmd = g_object_get_data(obj, "gy_callback_cmd");
+  GISignalInfo * cbinfo = g_object_get_data(obj, "gy_callback_info");
+  GIRepository * repo = g_object_get_data(obj, "gy_callback_repo");
+  GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
+  char*buf=NULL;
+  int ndrops=0;
+  ypush_check(3);
+
+  long idx1=0, idx2=0;
+
+  if (cbinfo) {
+    GY_DEBUG("Event received: %d\n", ((GdkEventAny*) data )-> type);
+    const char * var1 = "__gy_callback_var1";
+    const char * var2 = "__gy_callback_var2";
+    idx1 = yget_global(var1, 0);
+    idx2 = yget_global(var2, 0);
+
+    gy_Object * o1 = ypush_gy_Object();
+    yput_global(idx1, 0);
+    gy_Object * o2 = ypush_gy_Object();
+    yput_global(idx2, 0);
+
+    o1 -> object = obj;
+    o1 -> repo = repo;
+    g_object_ref(o1 -> object);
+    o1 -> info =
+	  g_irepository_find_by_gtype(o1 -> repo,
+				      G_OBJECT_TYPE(o1 -> object));
+
+    o2 -> object = data;
+    o2 -> repo = repo;
+
+
+    const char * fmt = "noop, %s (%s, %s)";
+    char * buf=p_malloc(sizeof(char)*
+			(strlen(fmt)+strlen(cmd)+strlen(var1)+strlen(var2)));
+    sprintf(buf, fmt, cmd, var1, var2);
+    cmd=buf;
+    ndrops+=2;
+  }
+
   long dims[2]={1,1};
   *ypush_q(dims) = p_strcpy(cmd);
+  ++ndrops;
+  if (buf) p_free(buf);
   yexec_include(0,1);
-  yarg_drop(0);
+  yarg_drop(ndrops);
+
 }
 
 void
 Y_gy_signal_connect(int argc) {
   gy_Object * o = yget_gy_Object(argc-1);
+  if (!o->info || !GI_IS_OBJECT_INFO(o->info) || ! o -> object )
+    y_error("First argument but hold GObject derivative instance");
   ystring_t sig = ygets_q(argc-2);
   ystring_t cmd = p_strcpy(ygets_q(argc-3));
   // this will work as long as object is the first parameter
   // in the callback signature.
-  g_object_set_data(o->object, "gy_callback", cmd);
+  GISignalInfo * cbinfo=NULL;
+  gint i, n;
+  GIBaseInfo * cur, *next;
+
+  cur = o -> info;
+  g_base_info_ref(cur);
+  while (!cbinfo && cur) {
+    GY_DEBUG("%s\n", g_base_info_get_name(cur) );
+    n= g_object_info_get_n_signals(cur);
+    for (i=0; i<n; ++i) {
+      cbinfo = g_object_info_get_signal(cur, i);
+      if (!strcmp(g_base_info_get_name(cbinfo), sig))
+	break;
+      g_base_info_unref(cbinfo);
+    }
+    next = g_object_info_get_parent(cur);
+    g_base_info_unref(cur);
+    cur = next;
+  }
+  if (!cbinfo) y_errorq ("Object does not support signal \"%s\"", sig);
+
+  g_object_set_data(o -> object, "gy_callback_cmd", cmd);
+  g_object_set_data(o->object, "gy_callback_info", cbinfo);
+  g_object_set_data(o->object, "gy_callback_repo", o -> repo);
+  g_signal_connect (o -> object,
+		    sig,
+		    G_CALLBACK(&gy_callback),
+		    NULL);
+  ypush_nil();
+}
+
+void
+Y_gy_signal_connect_expr(int argc) {
+  gy_Object * o = yget_gy_Object(argc-1);
+  ystring_t sig = ygets_q(argc-2);
+  ystring_t cmd = p_strcpy(ygets_q(argc-3));
+  // this will work as long as object is the first parameter
+  // in the callback signature.
+  g_object_set_data(o->object, "gy_callback_cmd", cmd);
+  g_object_set_data(o->object, "gy_callback_info", NULL);
   g_signal_connect (o -> object,
 		    sig,
 		    G_CALLBACK(&gy_callback),
@@ -912,7 +1010,8 @@ Y_gy_xid(int argc) {
 }
 
 void
-Y_gy_data(int argc) {
+Y_gy_data(int argc)
+{
   gy_Object * o = yget_gy_Object(0);
   GObject * ptr = o->object;
   if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
@@ -922,5 +1021,38 @@ Y_gy_data(int argc) {
 					   "Gdk",
 					   "EventAny");
   out -> object = g_object_get_data(ptr, "gy_data");
+
+}
+
+void
+Y_gy_debug(int argc)
+{
+  ypush_long(_gy_debug);
+  if (argc) _gy_debug = ygets_l(argc);
+}
+
+void
+Y_gy_setlocale(int argc)
+{
+  if (argc > 2) y_error("gy_setlocale, [[CATEGORY, ], LOCALE]");
+  char * scat="LC_ALL";
+  char * sloc =NULL;
+  int cat=0;
+  if (argc == 2) scat = ygets_q(1);
+  if (yarg_string(0)) sloc = ygets_q(0);
+  if (!strcmp(scat, "LC_ALL")) cat = LC_ALL;
+  else if (!strcmp(scat, "LC_COLLATE")) cat = LC_COLLATE;
+  else if (!strcmp(scat, "LC_CTYPE")) cat = LC_CTYPE;
+  else if (!strcmp(scat, "LC_MONETARY")) cat = LC_MONETARY;
+  else if (!strcmp(scat, "LC_NUMERIC")) cat = LC_NUMERIC;
+  else if (!strcmp(scat, "LC_TIME")) cat = LC_TIME;
+  else y_error("unsupported locale category");
+
+  if (sloc && cat==LC_NUMERIC && strcmp(sloc, "C"))
+    y_error("Yorick does not support LC_NUMERIC != \"C\"");
+
+  *ypush_q(0) = p_strcpy(setlocale(cat, sloc));
+
+  setlocale(LC_NUMERIC, "C");
 
 }
