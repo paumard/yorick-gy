@@ -29,6 +29,8 @@
 #include <string.h>
 #include <signal.h>
 #include <locale.h>
+//#include <pthread.h>
+//#include <stdio.h>
 
 static gboolean _gy_debug=0;
 #define GY_DEBUG( ... ) \
@@ -335,6 +337,7 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     arg->v_double=ygets_d(iarg);
     break;
   case GI_TYPE_TAG_UTF8:
+  case GI_TYPE_TAG_FILENAME:
     arg->v_string=ygets_q(iarg);
     GY_DEBUG( "argument: %s\n", arg->v_string);
     break;
@@ -469,6 +472,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
     GY_DEBUG("%g\n", arg->v_double);
     break;
   case GI_TYPE_TAG_UTF8:
+  case GI_TYPE_TAG_FILENAME:
     *ypush_q(0) = p_strcpy(arg->v_string);
     break;
   case GI_TYPE_TAG_INTERFACE:
@@ -1010,21 +1014,6 @@ Y_gy_xid(int argc) {
 }
 
 void
-Y_gy_data(int argc)
-{
-  gy_Object * o = yget_gy_Object(0);
-  GObject * ptr = o->object;
-  if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
-  gy_Object * out = ypush_gy_Object();
-  out -> repo = o -> repo;
-  out -> info = g_irepository_find_by_name(out->repo,
-					   "Gdk",
-					   "EventAny");
-  out -> object = g_object_get_data(ptr, "gy_data");
-
-}
-
-void
 Y_gy_debug(int argc)
 {
   ypush_long(_gy_debug);
@@ -1056,3 +1045,17 @@ Y_gy_setlocale(int argc)
   setlocale(LC_NUMERIC, "C");
 
 }
+
+/*
+void * gy_thread(void * cmd) {
+  yexec_include(0,1);
+  return NULL;
+}
+
+void
+Y_gy_thread(int argc) {
+  pthread_t thread;
+  pthread_create(&thread, NULL, &gy_thread, NULL);
+  sleep(100);
+}
+*/

@@ -213,14 +213,6 @@ extern gy_xid;
    SEE ALSO: gy, gy_signal_connect, window
  */
 
-extern gy_data;
-/* DOCUMENT data = gy_data(object)
-   
-     Get data set by the C callback on object. Often the GdkEvent if
-     object is a GtkWidget. This is a temporary hack.
-     
- */
-
 extern gy_debug;
 /* DOCUMENT mode = gy_debug();
          or gy_debug, mode;
@@ -239,3 +231,5 @@ extern gy_setlocale;
 
    SEE ALSO: gy
  */
+
+//extern gy_thread;

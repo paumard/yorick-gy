@@ -38,7 +38,7 @@ PKG_CLEAN=
 # autoload file for this package, if any
 PKG_I_START=
 # non-pkg.i include files for this package, if any
-PKG_I_EXTRA=
+PKG_I_EXTRA=gycmap.i
 
 # -------------------------------- standard targets and rules (in Makepkg)
 
@@ -76,3 +76,11 @@ MAKE_TEMPLATE = protect-against-1.5
 #	$(CC) $(CPPFLAGS) $(CFLAGS) -DMY_SWITCH -o $@ -c myfunc.c
 
 # -------------------------------------------------------- end of Makefile
+
+CMAP_PNG = cbc-div-cmap.png  cb-div-cmap.png   cb-seq-cmap.png  gmt-cmap.png \
+           msh-cmap.png cbc-seq-cmap.png  cb-qual-cmap.png  gist-cmap.png \
+           gpl-cmap.png  mpl-cmap.png
+
+install::
+	$(YNSTALL) gycmap.xml $(DEST_Y_SITE)/glade
+	$(YNSTALL) $(CMAP_PNG) $(DEST_Y_SITE)/data
