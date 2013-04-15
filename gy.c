@@ -522,6 +522,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 	y_errorn("Unimplemented output GIArgument enum storage %ld",
 		 g_enum_info_get_storage_type (itrf));
       }
+      break;
     case GI_INFO_TYPE_OBJECT:
       if (!arg -> v_pointer) ypush_nil();
       outObject = ypush_gy_Object();
@@ -632,7 +633,9 @@ gy_Object_eval(void *obj, int argc)
 	      y_error("get field failed");
 
 	    gy_Argument_pushany(&rarg, ti, o);
+	    GY_DEBUG("pushing result... ");
 	    yput_global(idx, 0);
+	    GY_DEBUG("done.\n");
 	    ++lim;
 	    //	    yarg_drop(0);
 	  } else {

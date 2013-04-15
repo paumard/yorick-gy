@@ -411,6 +411,12 @@ func gycmap(void)
 }
 
 func __gywindow_realized(widget, event) {
+  ev = gy.Gdk.EventAny(event);
+  gy_debug, 1;
+  ev, type, type;
+  "done";
+  gy_debug, 0;
+  type;
   gy_xid(widget);
    window, parent=gy_xid(widget);
    if (gy.Gtk.main_level()) {
@@ -485,11 +491,13 @@ func gy_zoom(widget, event) {
 
    See also: limits
 */
+  gy.Gtk.main_quit();
   local res;
   res=[];
     if (is_void(factor)) factor=1.5;
     info, mouse;
     mouse()(10);
+    "here";
     res=mouse();
     info, res;
     while (res(10)!=0) {
