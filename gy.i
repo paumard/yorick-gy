@@ -74,12 +74,15 @@ local gy;
     win = Gtk.Window.new(Gtk.WindowType.toplevel);
     button = Gtk.Button.new_with_label("Hello World!");
     win.add(button);
-    gy_signal_connect_expr, button, "clicked", "\"Hello World!\"";
-    func winhide(void) {
-    noop, win.hide();
-    noop, Gtk.main_quit();
+    func hello(widget, event, data) {
+      "\"Hello World!\"";
     }
-    gy_signal_connect_expr(win, "delete_event", "noop, winhide()");
+    gy_signal_connect, button, "clicked", "hello";
+    func winhide(widget, event, data) {
+      noop, win.hide();
+      noop, Gtk.main_quit();
+    }
+    gy_signal_connect(win, "delete-event", "winhide");
     noop, win.show_all();
     noop, Gtk.main();
     
@@ -126,9 +129,7 @@ extern gy_list_object;
  */
 
 extern gy_signal_connect;
-extern gy_signal_connect_expr;
 /* DOCUMENT gy_connect_signal, object, signal, handler
-         or gy_connect_signal_expr, object, signal, handler
 
     Connect signal to signal handler
 
@@ -141,8 +142,6 @@ extern gy_signal_connect_expr;
                include, ["noop, " + handler + "(par1, ...,  parn)"], 1
              where par1 to parn are the parameters described in the C
              documentation for SIGNAL.
-    expr:    a free form yorick command. It will be called like:
-               include, [expr], 1
              
    EXAMPLE:
     See gy.
@@ -158,7 +157,7 @@ func __gyterm_init(void) {
   require,  "string.i";
   extern __gyterm_initialized, __gyterm_win;
   Gtk=gy.Gtk;
-  Gtk.init_check(0,);
+  noop, Gtk.init_check(0,);
   gy_setlocale;
   __gyterm_win = Gtk.Window.new(Gtk.WindowType.toplevel);
   noop, __gyterm_win.set_title("Yorick command line");
@@ -220,7 +219,7 @@ func gy_gtk_window_suspend(window)
    SEE ALSO: gy, gyterm, gy_gtk_entry_include
  */
 {
-  gy_signal_connect, window, "delete_event", "__gyterm_suspend";
+  gy_signal_connect, window, "delete-event", "__gyterm_suspend";
 }
 
 func __gyterm_suspend(widget, event) {
@@ -271,7 +270,7 @@ func __gycmap_init(void) {
                                          Y_SITE)+"glade/")));
  
   
-  noop, gy.Gtk.init(0,);
+  noop, gy.Gtk.init_check(0,);
   gy_setlocale;
   __gycmap_gist_img = gy.Gtk.Image.new();
   noop, __gycmap_gist_img.set_from_file(gist_png);
@@ -409,6 +408,153 @@ func gycmap(void)
   if (!__gycmap_initialized) __gycmap_init;
   noop, __gycmap_win.show_all();
   noop, gy.Gtk.main();
+}
+
+func __gywindow_realized(widget, event) {
+  gy_xid(widget);
+   window, parent=gy_xid(widget);
+   if (gy.Gtk.main_level()) {
+     noop, gy.Gtk.main_quit();
+     set_idler, __gyterm_idler;
+   }
+}
+
+func __gywindow_button_pressed(widget, event) {
+  "truc";
+  if (gy.Gtk.main_level()) {
+    noop, gy.Gtk.main_quit();
+    set_idler, __gyterm_idler;
+  }
+}
+
+func __gywindow_init(void) {
+  extern __gywindow_win;
+  Gtk=gy.Gtk;
+  noop, Gtk.init_check(0,);
+  gy_setlocale;
+  __gywindow_win = Gtk.Window.new(Gtk.WindowType.toplevel);
+  gy_gtk_window_suspend, __gywindow_win;
+  box=gy.Gtk.Box.new(gy.Gtk.Orientation.vertical, 0);
+  noop, __gywindow_win.add(box);
+  da = gy.Gtk.DrawingArea.new();
+  gy_signal_connect, da, "event", "__gywindow_realized";
+  gy_signal_connect, da, "button-release-event", "__gywindow_button_pressed";
+  noop, da.add_events(gy.Gdk.EventMask.button_press_mask|
+                      gy.Gdk.EventMask.button_release_mask);
+  noop, da.set_size_request(600, 500);
+  noop, box.pack_start(da, 1, 1, 0);
+
+  box2=gy.Gtk.Box.new(gy.Gtk.Orientation.horizontal, 0);
+
+  noop, box.pack_start(box2, 0,0,0);
+
+  entry=gy.Gtk.Entry.new();
+  gy_gtk_entry_include, entry;
+  noop, box2.pack_start(entry, 1,1,0);
+
+  button=gy.Gtk.Button.new_with_label("Zoom");
+  gy_signal_connect, button, "clicked", "gy_zoom";
+  noop, box2.pack_start(button, 0,0,0);
+  
+}
+
+func gywindow(wid)
+/* DOCUMENT gywindow
+   *** WARNING: currently broken ***
+ */
+{
+  if (is_void(__gywindow_win)) __gywindow_init;
+  noop, __gywindow_win.show_all();
+  noop, gy.Gtk.main();
+}
+
+func gy_zoom(widget, event) {
+/* DOCUMENT cv_zoom
+
+   *** WARNING: currently broken ***
+   
+   A zoom  similar to  that provided directly  by yorick.  left,  middle and
+   left click zoom-in, pan and  soom-out respectively; when control is hold,
+   button  1 zooms on  drawn rectangle,  buttons 2  and 3  zoom out  so that
+   viewport is  downscaled to drawn rectangle (unlike  default zoomer). When
+   control is hold, normal zoom  is perform dragging low-left to high-right:
+   other combination  cause one or both  of the axes to  be inverted (unlike
+   default zoomer).
+
+   Click in another window to stop.
+
+   See also: limits
+*/
+  local res;
+  res=[];
+    if (is_void(factor)) factor=1.5;
+    info, mouse;
+    mouse()(10);
+    res=mouse();
+    info, res;
+    while (res(10)!=0) {
+        x_pressed=res(1);
+        y_pressed=res(2);
+        x_released=res(3);
+        y_released=res(4);
+        xndc_pressed=res(5);
+        yndc_pressed=res(6);
+        xndc_released=res(7);
+        yndc_released=res(8);
+        msystem=res(9);
+        button=res(10);
+        modifiers=res(11);
+
+        old_limits=limits();
+        llx=llx0=old_limits(1);
+        urx=urx0=old_limits(2);
+        lly=lly0=old_limits(3);
+        ury=ury0=old_limits(4);
+
+        // normalised pressed coordinates
+        xpn=(x_pressed-llx0)/(urx0-llx0);
+        ypn=(y_pressed-lly0)/(ury0-lly0);
+        
+        if (xpn > 0 && xpn < 1) dox=1; else dox=0;
+        if (ypn > 0 && ypn < 1) doy=1; else doy=0;
+        
+        if (modifiers==4) {
+            if (button==1) {
+                // just zoom on the box
+                if (dox && doy) limits,x_pressed,x_released,y_pressed,y_released;
+                else if (dox) limits,x_pressed,x_released;
+                else if (doy) range,y_pressed,y_released;
+            } else {
+                // zoom out current view into the box
+                //x and y scale factors
+                if (dox) {
+                    xscale=(x_released-x_pressed)/(urx0-llx0);
+                    llx=llx0-(x_pressed-llx0)/xscale;
+                    urx=llx+(urx0-llx0)/xscale;
+                }
+                if (doy) {
+                    yscale=(y_released-y_pressed)/(ury0-lly0);
+                    lly=lly0-(y_pressed-lly0)/yscale;
+                    ury=lly+(ury0-lly0)/yscale;
+                }
+                limits,llx,urx,lly,ury;
+            }
+        } else {
+            if (button==1) scale=factor;
+            else if (button==2) scale=1;
+            else if (button==3) scale=1./factor;
+            if (dox) {
+                llx=x_pressed-(x_released-llx0)/scale;
+                urx=x_pressed+(urx-x_released)/scale;
+            }
+            if (doy) {
+                lly=y_pressed-(y_released-lly0)/scale;
+                ury=y_pressed+(ury-y_released)/scale;
+            }
+            limits,llx,urx,lly,ury;
+        }
+        res=mouse(1,1,"");
+    }
 }
 
 

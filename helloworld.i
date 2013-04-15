@@ -7,14 +7,19 @@ win = Gtk.Window.new(Gtk.WindowType.toplevel);
 
 button = Gtk.Button.new_with_label("Hello World!");
 win.add(button);
-gy_signal_connect_expr, button, "clicked", "\"Hello World!\"";
 
-func winhide(void) {
-  noop, win.hide();
-  noop, Gtk.main_quit();
+func hello(wdg) {
+  "Hello World!";
 }
 
-gy_signal_connect_expr(win, "delete_event", "noop, winhide()");
+gy_signal_connect, button, "clicked", "hello";
+
+func winhide(wdg, evt) {
+  noop, wdg.hide();
+  noop, gy.Gtk.main_quit();
+}
+
+gy_signal_connect(win, "delete-event", "winhide");
 
 noop, win.show_all();
 noop, Gtk.main();

@@ -32,6 +32,13 @@
 //#include <pthread.h>
 //#include <stdio.h>
 
+typedef struct _gy_signal_data {
+  GIBaseInfo * info;
+  GIRepository * repo;
+  char * cmd;
+  void * data;
+} gy_signal_data;
+
 static gboolean _gy_debug=0;
 #define GY_DEBUG( ... ) \
   if (_gy_debug) fprintf(stderr, "GY DEBUG: " __VA_ARGS__ );
@@ -345,6 +352,9 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     break;
   case GI_TYPE_TAG_INT32:
     arg->v_int32=(gint32)ygets_l(iarg);
+    break;
+  case GI_TYPE_TAG_UINT32:
+    arg->v_int32=(guint32)ygets_l(iarg);
     break;
   case GI_TYPE_TAG_DOUBLE:
     arg->v_double=ygets_d(iarg);
@@ -912,19 +922,68 @@ Y_gy_list_object(int argc) {
   }
 }
 
-void gy_callback(GObject* obj, void* data, ...) {
-  const char * cmd = g_object_get_data(obj, "gy_callback_cmd");
-  GISignalInfo * cbinfo = g_object_get_data(obj, "gy_callback_info");
-  GIRepository * repo = g_object_get_data(obj, "gy_callback_repo");
+////  generic callbacks
+
+void gy_callback0(void* arg1, gy_signal_data* sd) {
+  GY_DEBUG("in gy_callback0()\n");
+  const char * cmd = sd -> cmd;
+  GISignalInfo * cbinfo = sd -> info;
+  GIRepository * repo = sd -> repo;
+  //  void * udata = sd -> data;
   GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
   char*buf=NULL;
   int ndrops=0;
-  ypush_check(3);
+
+  ypush_check(4);
+
+  long idx1=0;
+
+  if (cbinfo) {
+    const char * var1 = "__gy_callback_var1";
+    idx1 = yget_global(var1, 0);
+
+    gy_Object * o1 = ypush_gy_Object();
+    yput_global(idx1, 0);
+
+    o1 -> object = arg1;
+    o1 -> repo = repo;
+    g_object_ref(o1 -> object);
+    o1 -> info =
+	  g_irepository_find_by_gtype(o1 -> repo,
+				      G_OBJECT_TYPE(o1 -> object));
+
+    const char * fmt = "noop, %s (%s)";
+    char * buf=p_malloc(sizeof(char)*
+			(strlen(fmt)+strlen(cmd)+strlen(var1)));
+    sprintf(buf, fmt, cmd, var1);
+    cmd=buf;
+    ndrops+=1;
+  }
+
+  long dims[2]={1,1};
+  *ypush_q(dims) = p_strcpy(cmd);
+  ++ndrops;
+  if (buf) p_free(buf);
+  yexec_include(0,1);
+  yarg_drop(ndrops);
+
+}
+
+
+void gy_callback1(void* arg1, void* arg2, gy_signal_data* sd) {
+  const char * cmd = sd -> cmd;
+  GISignalInfo * cbinfo = sd -> info;
+  GIRepository * repo = sd -> repo;
+  //void * udata = sd -> data;
+  GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
+  char*buf=NULL;
+  int ndrops=0;
+
+  ypush_check(4);
 
   long idx1=0, idx2=0;
 
   if (cbinfo) {
-    GY_DEBUG("Event received: %d\n", ((GdkEventAny*) data )-> type);
     const char * var1 = "__gy_callback_var1";
     const char * var2 = "__gy_callback_var2";
     idx1 = yget_global(var1, 0);
@@ -935,14 +994,14 @@ void gy_callback(GObject* obj, void* data, ...) {
     gy_Object * o2 = ypush_gy_Object();
     yput_global(idx2, 0);
 
-    o1 -> object = obj;
+    o1 -> object = arg1;
     o1 -> repo = repo;
     g_object_ref(o1 -> object);
     o1 -> info =
 	  g_irepository_find_by_gtype(o1 -> repo,
 				      G_OBJECT_TYPE(o1 -> object));
 
-    o2 -> object = data;
+    o2 -> object = arg2;
     o2 -> repo = repo;
 
 
@@ -962,6 +1021,67 @@ void gy_callback(GObject* obj, void* data, ...) {
   yarg_drop(ndrops);
 
 }
+
+void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) {
+  const char * cmd = sd -> cmd;
+  GISignalInfo * cbinfo = sd -> info;
+  GIRepository * repo = sd -> repo;
+  // void * udata = sd -> data;
+  GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
+  char*buf=NULL;
+  int ndrops=0;
+
+  ypush_check(5);
+
+  long idx1=0, idx2=0, idx3=0;
+
+  if (cbinfo) {
+    const char * var1 = "__gy_callback_var1";
+    const char * var2 = "__gy_callback_var2";
+    const char * var3 = "__gy_callback_var3";
+    idx1 = yget_global(var1, 0);
+    idx2 = yget_global(var2, 0);
+    idx3 = yget_global(var3, 0);
+
+    gy_Object * o1 = ypush_gy_Object();
+    yput_global(idx1, 0);
+    gy_Object * o2 = ypush_gy_Object();
+    yput_global(idx2, 0);
+    gy_Object * o3 = ypush_gy_Object();
+    yput_global(idx3, 0);
+
+    o1 -> object = arg1;
+    o1 -> repo = repo;
+    g_object_ref(o1 -> object);
+    o1 -> info =
+	  g_irepository_find_by_gtype(o1 -> repo,
+				      G_OBJECT_TYPE(o1 -> object));
+
+    o2 -> object = arg2;
+    o2 -> repo = repo;
+    o3 -> object = arg3;
+    o3 -> repo = repo;
+
+
+    const char * fmt = "noop, %s (%s, %s, %s)";
+    char * buf=p_malloc(sizeof(char)*
+			(strlen(fmt)+strlen(cmd)
+			 +strlen(var1)+strlen(var2)+strlen(var3)));
+    sprintf(buf, fmt, cmd, var1, var2, var3);
+    cmd=buf;
+    ndrops+=3;
+  }
+
+  long dims[2]={1,1};
+  *ypush_q(dims) = p_strcpy(cmd);
+  ++ndrops;
+  if (buf) p_free(buf);
+  yexec_include(0,1);
+  yarg_drop(ndrops);
+
+}
+
+///// end callbacks
 
 void
 Y_gy_signal_connect(int argc) {
@@ -986,6 +1106,7 @@ Y_gy_signal_connect(int argc) {
       if (!strcmp(g_base_info_get_name(cbinfo), sig))
 	break;
       g_base_info_unref(cbinfo);
+      cbinfo=NULL;
     }
     next = g_object_info_get_parent(cur);
     g_base_info_unref(cur);
@@ -993,29 +1114,34 @@ Y_gy_signal_connect(int argc) {
   }
   if (!cbinfo) y_errorq ("Object does not support signal \"%s\"", sig);
 
-  g_object_set_data(o -> object, "gy_callback_cmd", cmd);
-  g_object_set_data(o->object, "gy_callback_info", cbinfo);
-  g_object_set_data(o->object, "gy_callback_repo", o -> repo);
-  g_signal_connect (o -> object,
-		    sig,
-		    G_CALLBACK(&gy_callback),
-		    NULL);
-  ypush_nil();
-}
+  gy_signal_data * sd = g_new0(gy_signal_data, 1);
 
-void
-Y_gy_signal_connect_expr(int argc) {
-  gy_Object * o = yget_gy_Object(argc-1);
-  ystring_t sig = ygets_q(argc-2);
-  ystring_t cmd = p_strcpy(ygets_q(argc-3));
-  // this will work as long as object is the first parameter
-  // in the callback signature.
-  g_object_set_data(o->object, "gy_callback_cmd", cmd);
-  g_object_set_data(o->object, "gy_callback_info", NULL);
+  GY_DEBUG("%p type: %s, name: %s, is signal info: %d, is callable: %d\n",
+	   cbinfo,
+	   g_info_type_to_string(g_base_info_get_type(cbinfo)),
+	   g_base_info_get_name(cbinfo),
+	   GI_IS_SIGNAL_INFO(cbinfo),
+	   GI_IS_CALLABLE_INFO(cbinfo));
+
+  sd -> info = cbinfo;
+  sd -> cmd = cmd;
+  sd -> repo = o -> repo;
+
+  GCallback * callbacks[]={(GCallback*)&gy_callback0,
+			   (GCallback*)&gy_callback1,
+			   (GCallback*)&gy_callback2};
+  gint nargs = g_callable_info_get_n_args (cbinfo);
+  GY_DEBUG("Callback takes %d arguments\n", nargs);
+  
+
+  if (nargs>2) y_errorn("unimplmented: callback with %ld arguments", nargs);
+
+  GY_DEBUG("Callback address: %p\n", callbacks[nargs]);
+
   g_signal_connect (o -> object,
 		    sig,
-		    G_CALLBACK(&gy_callback),
-		    NULL);
+		    G_CALLBACK(callbacks[nargs]),
+		    sd);
   ypush_nil();
 }
 
