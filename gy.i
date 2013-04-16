@@ -177,8 +177,7 @@ func __gyterm_idler(void) {
 }
 
 func __gyterm_entry_activated(widget, user_data) {
-  noop, gy.Gtk.main_quit();
-  set_idler, __gyterm_idler;
+  gy_gtk_idleonce;
   cmd=widget.get_text();
   noop, widget.set_text("");
   if (cmd != "") include, strchar("if (catch(-1)) {return;} "+cmd), 1;
@@ -188,8 +187,7 @@ func __gyterm_key_pressed(widget, event) {
   ev = gy.Gdk.EventKey(event);
   ev, keyval, keyval;
   if (keyval!=gy.Gdk.KEY_Return) return;
-  noop, gy.Gtk.main_quit();
-  set_idler, __gyterm_idler;
+  gy_gtk_idleonce;
   cmd=widget.get_text();
   include, strchar("if (catch(-1)) {return;} "+cmd), 1;
 }
@@ -415,9 +413,17 @@ func gycmap(void)
 
 //// gywindow: a yorick window wrapper
 
+func __gywindow_on_error (void) {
+  extern __gywindow_device;
+  noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
+}
+
 func __gywindow_event_handler(widget, event) {
-  extern __gywindow_win, __gywindow_xlabel, __gywindow_ylabel;
-  
+  extern __gywindow_win, __gywindow_xlabel, __gywindow_ylabel,
+    __gywindow_xs0, __gywindow_ys0, __gywindow_device;
+
+  after_error=__gywindow_on_error;
+    
   ev = gy.Gdk.EventAny(event);
   ev, type, type;
 
@@ -427,72 +433,120 @@ func __gywindow_event_handler(widget, event) {
   
   if (type == EventType.map) {
     window, parent=gy_xid(widget), ypos=-24 ;
-    if (Gtk.main_level()) {
-      noop, Gtk.main_quit();
-      set_idler, __gyterm_idler;
-    }
+    if (Gtk.main_level()) gy_gtk_idleonce;
     return;
   }
   
   if (type == EventType.enter_notify) {
-    device = Gdk.Device(Gtk.get_current_event_device());
+    __gywindow_device = Gdk.Device(Gtk.get_current_event_device());
     win = gy_gdk_window(widget);
-    noop, device.grab(win, Gdk.GrabOwnership.none, 1,
-                      Gdk.EventMask.all_events_mask, , Gdk.CURRENT_TIME);
-    return;
-  }
-  
-  if (type == EventType.leave_notify) {
-    device = Gdk.Device(Gtk.get_current_event_device());
-    noop, device.ungrab(Gdk.CURRENT_TIME);
+    noop, __gywindow_device.grab(win, Gdk.GrabOwnership.none, 1,
+                                 Gdk.EventMask.all_events_mask,
+                                 ,
+                                 Gdk.CURRENT_TIME);
     return;
   }
 
-  llx = [60.,  405];
-    
-  
-  if (type == EventType.button_press) {
-    ev = Gdk.EventButton(ev);
-    ev, x, x, y, y;
+  if (type == EventType.leave_notify) {
+    /*
     device = Gdk.Device(Gtk.get_current_event_device());
-    win = gy_gdk_window(widget);
-    write, format="key pressed at x=%g, y=%g\n", x, y;
-    //Gtk.main_quit();
-    //set_idler, __gyterm_idler;
-    //device.ungrab(Gdk.CURRENT_TIME);
-    //    device.grab(win, Gdk.GrabOwnership.none, 1,
-    //            Gdk.EventMask.all_events_mask, , Gdk.CURRENT_TIME);
+    noop, device.ungrab(Gdk.CURRENT_TIME);
+    */
+    return;
+  }
+
+  if (type == EventType.button_release ||
+      type == EventType.button_press ||
+      type == EventType.motion_notify) {
+    ev = Gdk.EventButton(ev);
+    ev, x, x, y, y, button, button;
+    // ll in NDC: 0.1165 0.3545
+    // ur in NDC: 0.6790 0.9170
+    xndc=0.1165+(0.5625/450.)*(x-2);
+    yndc=0.9170-(0.5625/450.)*(y-1);
+
+    vp = viewport();
+    lm = limits();
+
+    if (xndc < vp(1)) xs = lm(1);
+    else if (xndc>vp(2)) xs=lm(2);
+    else xs = lm(1)+(xndc-vp(1))*(lm(2)-lm(1))/(vp(2)-vp(1));
+
+    if (yndc < vp(3)) ys = lm(3);
+    else if (yndc>vp(4)) ys=lm(4);
+    else ys = lm(3)+(yndc-vp(3))*(lm(4)-lm(3))/(vp(4)-vp(3));
+  }
+
+  if (type == EventType.button_press) {
+    if (xndc >= vp(1) && xndc <= vp(2)) __gywindow_xs0=xs;
+    else __gywindow_xs0=[];
+    if (yndc >= vp(3) && yndc <= vp(4)) __gywindow_ys0=ys;
+    else __gywindow_ys0=[];
     return;
   }
 
   if (type == EventType.button_release) {
-    ev = Gdk.EventButton(ev);
-    ev, x, x, y, y;
-    device = Gdk.Device(Gtk.get_current_event_device());
-    win = gy_gdk_window(widget);
-    write, format="key released at x=%g, y=%g\n", x, y;
-    //Gtk.main_quit();
-    //set_idler, __gyterm_idler;
-    //device.ungrab(Gdk.CURRENT_TIME);
-    //device.grab(win, Gdk.GrabOwnership.none, 1,
-    //            Gdk.EventMask.all_events_mask, , Gdk.CURRENT_TIME);
+    lm2=lm;
+    fact=1.;
+    if (button==1) fact=2./3.;
+    else if (button==3) fact=1.5;
+
+    flags=long(lm(5));
+    xlog = flags & 128;
+    ylog = flags & 256;
+    
+    if (!is_void(__gywindow_xs0)) {
+      if (xlog) {
+        __gywindow_xs0=log10(__gywindow_xs0);
+        xs=log10(xs);
+        lm(1:2)=log10(lm(1:2));
+        lm2(1)=__gywindow_xs0 - (xs-lm(1))*fact;
+        lm2(2)=__gywindow_xs0 - (xs-lm(2))*fact;
+        lm2(1:2)=10^(lm2(1:2));
+      } else {
+        lm2(1)=__gywindow_xs0 - (xs-lm(1))*fact;
+        lm2(2)=__gywindow_xs0 - (xs-lm(2))*fact;
+      }
+      limits, lm2(1), lm2(2);
+    }
+
+    if (!is_void(__gywindow_ys0)) {
+      lm2(3)=__gywindow_ys0 - (ys-lm(3))*fact;
+      lm2(4)=__gywindow_ys0 - (ys-lm(4))*fact;
+      range, lm2(3), lm2(4);
+    }
+    
+    gy_gtk_idleonce;
     return;
   }
 
   if (type == EventType.motion_notify) {
-    ev = Gdk.EventButton(ev);
-    ev, x, x, y, y;
     if (x<0 || y<0 || x>455 || y>455) {
-      device = Gdk.Device(Gtk.get_current_event_device());
-      noop, device.ungrab(Gdk.CURRENT_TIME);
+      noop, __gywindow_device.ungrab(Gdk.CURRENT_TIME);
       return;
     }
-    noop, __gywindow_xlabel.set_text(pr1(x));
-    noop, __gywindow_ylabel.set_text(pr1(y));
+    noop, __gywindow_xlabel.set_text(pr1(xs));
+    noop, __gywindow_ylabel.set_text(pr1(ys));
     return;
   }
+  
+  //write, format="in __gywindow_realized. event: %d\n", type;
+}
 
-  write, format="in __gywindow_realized. event: %d\n", type;
+func gy_gtk_idleonce(void)
+/* DOCUMENT gygtk_idleonce
+
+     Display in Yorick graphic windows is updated only when Yorick is
+     idle, which never occurs when a gy.Gtk.main loop is running. This
+     procedure lets Yorick reach the idle state to update its graphics
+     and restarts the Gtk main loop. You should call it from Gtk
+     applications each time the graphics should be updated.
+
+   SEE ALSO: gy, gyterm, gywindow
+ */
+{
+  noop, gy.Gtk.main_quit();
+  set_idler, __gyterm_idler;
 }
 
 func __gywindow_init(void) {
@@ -521,7 +575,7 @@ func __gywindow_init(void) {
   da = Gtk.DrawingArea.new();
   gy_signal_connect, da, "event", __gywindow_event_handler;
   noop, da.add_events(gy.Gdk.EventMask.all_events_mask);
-  noop, da.set_size_request(453, 453);
+  noop, da.set_size_request(454, 453);
   noop, box.pack_start(da, 1, 1, 0);
 
   entry=Gtk.Entry.new();
@@ -547,98 +601,6 @@ func gywindow(wid)
   noop, __gywindow_win.show_all();
   noop, gy.Gtk.main();
 }
-
-func gy_zoom(widget, event) {
-/* DOCUMENT cv_zoom
-
-   *** WARNING: currently broken ***
-   
-   A zoom  similar to  that provided directly  by yorick.  left,  middle and
-   left click zoom-in, pan and  soom-out respectively; when control is hold,
-   button  1 zooms on  drawn rectangle,  buttons 2  and 3  zoom out  so that
-   viewport is  downscaled to drawn rectangle (unlike  default zoomer). When
-   control is hold, normal zoom  is perform dragging low-left to high-right:
-   other combination  cause one or both  of the axes to  be inverted (unlike
-   default zoomer).
-
-   Click in another window to stop.
-
-   See also: limits
-*/
-  gy.Gtk.main_quit();
-  local res;
-  res=[];
-    if (is_void(factor)) factor=1.5;
-    info, mouse;
-    mouse()(10);
-    "here";
-    res=mouse();
-    info, res;
-    while (res(10)!=0) {
-        x_pressed=res(1);
-        y_pressed=res(2);
-        x_released=res(3);
-        y_released=res(4);
-        xndc_pressed=res(5);
-        yndc_pressed=res(6);
-        xndc_released=res(7);
-        yndc_released=res(8);
-        msystem=res(9);
-        button=res(10);
-        modifiers=res(11);
-
-        old_limits=limits();
-        llx=llx0=old_limits(1);
-        urx=urx0=old_limits(2);
-        lly=lly0=old_limits(3);
-        ury=ury0=old_limits(4);
-
-        // normalised pressed coordinates
-        xpn=(x_pressed-llx0)/(urx0-llx0);
-        ypn=(y_pressed-lly0)/(ury0-lly0);
-        
-        if (xpn > 0 && xpn < 1) dox=1; else dox=0;
-        if (ypn > 0 && ypn < 1) doy=1; else doy=0;
-        
-        if (modifiers==4) {
-            if (button==1) {
-                // just zoom on the box
-                if (dox && doy) limits,x_pressed,x_released,y_pressed,y_released;
-                else if (dox) limits,x_pressed,x_released;
-                else if (doy) range,y_pressed,y_released;
-            } else {
-                // zoom out current view into the box
-                //x and y scale factors
-                if (dox) {
-                    xscale=(x_released-x_pressed)/(urx0-llx0);
-                    llx=llx0-(x_pressed-llx0)/xscale;
-                    urx=llx+(urx0-llx0)/xscale;
-                }
-                if (doy) {
-                    yscale=(y_released-y_pressed)/(ury0-lly0);
-                    lly=lly0-(y_pressed-lly0)/yscale;
-                    ury=lly+(ury0-lly0)/yscale;
-                }
-                limits,llx,urx,lly,ury;
-            }
-        } else {
-            if (button==1) scale=factor;
-            else if (button==2) scale=1;
-            else if (button==3) scale=1./factor;
-            if (dox) {
-                llx=x_pressed-(x_released-llx0)/scale;
-                urx=x_pressed+(urx-x_released)/scale;
-            }
-            if (doy) {
-                lly=y_pressed-(y_released-lly0)/scale;
-                ury=y_pressed+(ury-y_released)/scale;
-            }
-            limits,llx,urx,lly,ury;
-        }
-        res=mouse(1,1,"");
-    }
-}
-
 
 /// hack: should be done from gi
 extern gy_gdk_window;
@@ -666,8 +628,7 @@ extern gy_xid;
      builder=gy.Gtk.Builder.new(glade_file);
      ywin = builder.get_object(yorick_widget_name);
      func on_ywin_event(void) {
-       noop, Gtk.main_quit();
-       set_idler, __gyterm_idler;
+       gy_gtk_idleonce;
        window, parent=gy_xid(ywin);
      }
      gy_signal_connect, ywin, "event", on_ywin_event;
