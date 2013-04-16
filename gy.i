@@ -459,7 +459,7 @@ func __gywindow_event_handler(widget, event) {
       type == EventType.button_press ||
       type == EventType.motion_notify) {
     ev = Gdk.EventButton(ev);
-    ev, x, x, y, y, button, button;
+    ev, x, x, y, y, button, button, state, state;
     // ll in NDC: 0.1165 0.3545
     // ur in NDC: 0.6790 0.9170
     xndc=0.1165+(0.5625/450.)*(x-2);
@@ -468,13 +468,27 @@ func __gywindow_event_handler(widget, event) {
     vp = viewport();
     lm = limits();
 
+    flags=long(lm(5));
+    xlog = flags & 128;
+    ylog = flags & 256;
+
     if (xndc < vp(1)) xs = lm(1);
     else if (xndc>vp(2)) xs=lm(2);
-    else xs = lm(1)+(xndc-vp(1))*(lm(2)-lm(1))/(vp(2)-vp(1));
+    else {
+      if (xlog)
+        xs = lm(1) * (lm(2)/lm(1))^((xndc-vp(1))/(vp(2)-vp(1)));
+      else
+        xs = lm(1)+(xndc-vp(1))*(lm(2)-lm(1))/(vp(2)-vp(1));
+    }
 
     if (yndc < vp(3)) ys = lm(3);
     else if (yndc>vp(4)) ys=lm(4);
-    else ys = lm(3)+(yndc-vp(3))*(lm(4)-lm(3))/(vp(4)-vp(3));
+    else {
+      if (xlog)
+        ys = lm(3) * (lm(4)/lm(3))^((yndc-vp(3))/(vp(4)-vp(3)));
+      else
+        ys = lm(3)+(yndc-vp(3))*(lm(4)-lm(3))/(vp(4)-vp(3));
+    }
   }
 
   if (type == EventType.button_press) {
@@ -497,22 +511,21 @@ func __gywindow_event_handler(widget, event) {
     
     if (!is_void(__gywindow_xs0)) {
       if (xlog) {
-        __gywindow_xs0=log10(__gywindow_xs0);
-        xs=log10(xs);
-        lm(1:2)=log10(lm(1:2));
-        lm2(1)=__gywindow_xs0 - (xs-lm(1))*fact;
-        lm2(2)=__gywindow_xs0 - (xs-lm(2))*fact;
-        lm2(1:2)=10^(lm2(1:2));
+        if (xs==0. || __gywindow_xs0==0.) return;
+        lm2(1:2)=__gywindow_xs0 / (xs/lm(1:2))^fact;
       } else {
-        lm2(1)=__gywindow_xs0 - (xs-lm(1))*fact;
-        lm2(2)=__gywindow_xs0 - (xs-lm(2))*fact;
+        lm2(1:2)=__gywindow_xs0 - (xs-lm(1:2))*fact;
       }
       limits, lm2(1), lm2(2);
     }
 
     if (!is_void(__gywindow_ys0)) {
-      lm2(3)=__gywindow_ys0 - (ys-lm(3))*fact;
-      lm2(4)=__gywindow_ys0 - (ys-lm(4))*fact;
+      if (ylog) {
+        if (ys==0. || __gywindow_ys0==0.) return;
+        lm2(3:4)=__gywindow_ys0 / (ys/lm(3:4))^fact;
+      } else {
+        lm2(3:4)=__gywindow_ys0 - (ys-lm(3:4))*fact;
+      }
       range, lm2(3), lm2(4);
     }
     
