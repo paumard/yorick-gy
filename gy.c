@@ -537,6 +537,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
     case GI_INFO_TYPE_ENUM:
+    case GI_INFO_TYPE_FLAGS:
     GY_DEBUG("Out argument is enum\n");
       switch (g_enum_info_get_storage_type (itrf)) {
       case GI_TYPE_TAG_INT32:

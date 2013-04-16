@@ -460,6 +460,12 @@ func __gywindow_event_handler(widget, event) {
       type == EventType.motion_notify) {
     ev = Gdk.EventButton(ev);
     ev, x, x, y, y, button, button, state, state;
+
+    shft = state & Gdk.ModifierType.shift_mask;
+    meta = state & Gdk.ModifierType.mod1_mask;
+    if (shft && !meta && button==1) button=2;
+    if (meta && !shft && button==1) button=3;
+        
     // ll in NDC: 0.1165 0.3545
     // ur in NDC: 0.6790 0.9170
     xndc=0.1165+(0.5625/450.)*(x-2);
