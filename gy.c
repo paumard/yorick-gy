@@ -243,6 +243,8 @@ gy_Object_extract(void *obj, char * name)
 {
   gy_Object * o = (gy_Object *) obj;
 
+  if (!o->info) y_error("Object has no type information");
+  
   if (GI_IS_ENUM_INFO(o->info)) {
     
     gint64 wtype=-1;
@@ -262,17 +264,25 @@ gy_Object_extract(void *obj, char * name)
     else y_errorq("No such enum value: %s", name);
     return;
   }
-  if (GI_IS_OBJECT_INFO(o->info)) {
+
+  gboolean isstruct=GI_IS_STRUCT_INFO(o->info),
+    isobject=GI_IS_OBJECT_INFO(o->info);
+
+  if (isstruct || isobject) {
+    
+    GIBaseInfo * info =NULL;
 
     GY_DEBUG("Looking for symbol %s in %s\n",
 	   name,
 	   g_base_info_get_name(o->info));
-
-    GIBaseInfo * info = g_object_info_find_method (o->info, name);
+    if (GI_IS_OBJECT_INFO(o->info))
+      info = g_object_info_find_method (o->info, name);
+    else
+      info = g_struct_info_find_method (o->info, name);
 
     GIBaseInfo * cur = o->info, *next;
     g_base_info_ref(cur);
-    while (!info &&
+    while (!info && isobject &&
 	   (next = g_object_info_get_parent(cur))) {
       g_base_info_unref(cur);
       cur = next;
@@ -292,44 +302,46 @@ gy_Object_extract(void *obj, char * name)
       if (g_function_info_get_flags (info) & GI_FUNCTION_IS_METHOD) {
 	// a method needs an object!
 	out->object=o->object;
-	g_object_ref(o->object);
+	if (isobject) g_object_ref(o->object);
       }
       return;
     }
 
-    static const char const * sigprefix = "signal_";
-    int sigprefixlen=7;
+    if (isobject) {
+      static const char const * sigprefix = "signal_";
+      int sigprefixlen=7;
 
-    if (!strncmp(name, sigprefix, sigprefixlen)) {
-      name += sigprefixlen;
+      if (!strncmp(name, sigprefix, sigprefixlen)) {
+	name += sigprefixlen;
 
-      GY_DEBUG("Looking for signal %s in %s\n",
-	     name,
-	     g_base_info_get_name(o->info));
+	GY_DEBUG("Looking for signal %s in %s\n",
+		 name,
+		 g_base_info_get_name(o->info));
   
 
-      gint nc = g_object_info_get_n_signals (o->info);
+	gint nc = g_object_info_get_n_signals (o->info);
 
-      GY_DEBUG("%s has %d signals\n", g_base_info_get_name(o->info), nc);
+	GY_DEBUG("%s has %d signals\n", g_base_info_get_name(o->info), nc);
 
-      GISignalInfo * ci=NULL ;
-      gint i;
+	GISignalInfo * ci=NULL ;
+	gint i;
 
-      for (i=0; i<nc; ++i) {
-	ci = g_object_info_get_signal(o->info, i);
-	if (!strcmp(g_base_info_get_name (ci), name)) {
-	  info=ci;
-	  break;
+	for (i=0; i<nc; ++i) {
+	  ci = g_object_info_get_signal(o->info, i);
+	  if (!strcmp(g_base_info_get_name (ci), name)) {
+	    info=ci;
+	    break;
+	  }
+	  g_base_info_unref(ci);
 	}
-	g_base_info_unref(ci);
+	if (info) {
+	  gy_Object * out = ypush_gy_Object();
+	  out -> info = info;
+	  out->repo = o->repo;
+	  return;
+	}
+	y_errorq("Signal %s not found", name);
       }
-      if (info) {
-	gy_Object * out = ypush_gy_Object();
-	out -> info = info;
-	out->repo = o->repo;
-	return;
-      }
-      y_errorq("Signal %s not found", name);
     }
 
     if (!info) {
@@ -410,6 +422,7 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
       }
       arg->v_pointer=yget_gy_Object(iarg)->object;
       break;
+    case GI_INFO_TYPE_FLAGS:
     case GI_INFO_TYPE_ENUM:
       switch (g_enum_info_get_storage_type (itrf)) {
       case GI_TYPE_TAG_INT32:
@@ -486,11 +499,29 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
   case GI_TYPE_TAG_BOOLEAN:
     ypush_long(arg->v_boolean);
     break;
+  case GI_TYPE_TAG_INT8:
+    ypush_long(arg->v_int8);
+    break;
+  case GI_TYPE_TAG_UINT8:
+    ypush_long(arg->v_uint8);
+    break;
+  case GI_TYPE_TAG_INT16:
+    ypush_long(arg->v_int16);
+    break;
+  case GI_TYPE_TAG_UINT16:
+    ypush_long(arg->v_uint16);
+    break;
   case GI_TYPE_TAG_INT32:
     ypush_long(arg->v_int32);
     break;
   case GI_TYPE_TAG_UINT32:
     ypush_long(arg->v_uint32);
+    break;
+  case GI_TYPE_TAG_INT64:
+    ypush_long(arg->v_int64);
+    break;
+  case GI_TYPE_TAG_UINT64:
+    ypush_long(arg->v_uint64);
     break;
   case GI_TYPE_TAG_DOUBLE:
     GY_DEBUG("push double... ");
@@ -537,9 +568,9 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 	  g_irepository_find_by_gtype(o -> repo,
 				      G_OBJECT_TYPE(outObject->object));
 	if (!outObject->info) {
-	  y_warn("unable to find object type !");
-	  outObject -> info = info;
-	  g_base_info_ref(info);
+	  GY_DEBUG("unable to find object type !");
+	  //outObject -> info = info;
+	  //g_base_info_ref(info);
 	}
       } else {
 	outObject -> info = info;
@@ -650,6 +681,22 @@ gy_Object_eval(void *obj, int argc)
       --iarg;
     }
     
+    return;
+  }
+
+  if (GI_IS_OBJECT_INFO(o->info)) {
+    gy_Object* out = ypush_gy_Object(0);
+    if(!o->object) {
+      if (yarg_gy_Object(argc))
+	out -> object = yget_gy_Object(argc--) -> object;
+      else
+	out -> object = g_malloc0(g_struct_info_get_size (o->info));
+    } else
+      out -> object = o->object;
+    out->info=o->info;
+    g_base_info_ref(o->info);
+    g_object_ref(out->object);
+    out->repo=o->repo;
     return;
   }
 
@@ -852,15 +899,20 @@ Y_gy_list_namespace(int argc) {
 void
 Y_gy_list_object(int argc) {
   gy_Object * o = yget_gy_Object(0);
-    printf("gy object name: %s, type: %s, namespace: %s\n",
-	   g_base_info_get_name(o->info),
-	   g_info_type_to_string(g_base_info_get_type (o->info)),
-	   g_base_info_get_namespace (o->info));
+  if (!o->info) printf("object without type information.\n");
+  printf("gy object name: %s, type: %s, namespace: %s\n",
+	 g_base_info_get_name(o->info),
+	 g_info_type_to_string(g_base_info_get_type (o->info)),
+	 g_base_info_get_namespace (o->info));
+
+  gboolean isobject=GI_IS_OBJECT_INFO(o->info);
+  gboolean isstruct=GI_IS_STRUCT_INFO(o->info);
+
   if (o->object) {
     printf("with object at %p\n", o->object);
-    printf("Object type: %s\n", G_OBJECT_TYPE_NAME(o->object));
+    if (isobject) printf("Object type: %s\n", G_OBJECT_TYPE_NAME(o->object));
   }
-  if (GI_IS_STRUCT_INFO(o->info)) {
+  if (isstruct) {
     gint i, n = g_struct_info_get_n_fields(o->info);
     GIBaseInfo * cur=NULL;
     for (i=0; i<n; ++i) {
@@ -883,7 +935,7 @@ Y_gy_list_object(int argc) {
       ci = g_enum_info_get_value(o->info, i);
       printf("Enum name: %s\n", g_base_info_get_name (ci));
     }
-  } else if (GI_IS_OBJECT_INFO(o->info)) {
+  } else if (isobject) {
 
     printf("Available vfuncs:\n");
     int i, n = g_object_info_get_n_vfuncs (o->info);
@@ -1092,12 +1144,16 @@ Y_gy_signal_connect(int argc) {
   if (!o->info || !GI_IS_OBJECT_INFO(o->info) || ! o -> object )
     y_error("First argument but hold GObject derivative instance");
   ystring_t sig = ygets_q(argc-2);
-  ystring_t cmd = p_strcpy(ygets_q(argc-3));
-  // this will work as long as object is the first parameter
-  // in the callback signature.
-  GISignalInfo * cbinfo=NULL;
+  ystring_t cmd = NULL;
+    GISignalInfo * cbinfo=NULL;
   gint i, n;
   GIBaseInfo * cur, *next;
+
+  if (yarg_string(argc-3)) cmd = p_strcpy(ygets_q(argc-3));
+  else if (yarg_func(argc-3)) {
+    cmd = p_strcpy(yfind_name(yget_ref(argc-3)));
+  } else y_error("callback must be string or function");
+
 
   cur = o -> info;
   g_base_info_ref(cur);
@@ -1149,6 +1205,7 @@ Y_gy_signal_connect(int argc) {
 }
 
 //// hack, should be done from gi
+
 void
 Y_gy_xid(int argc) {
   gy_Object * o = yget_gy_Object(0);
@@ -1160,6 +1217,24 @@ Y_gy_xid(int argc) {
   GdkWindow * win = g_value_get_object(&val);
   if (!win) y_error("Cannot get Gdk window");
   ypush_long(GDK_WINDOW_XID(win));
+}
+
+void
+Y_gy_gdk_window(int argc) {
+  gy_Object * o = yget_gy_Object(0);
+  GObject * ptr = o->object;
+  if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
+  GValue val = G_VALUE_INIT;
+  g_value_init(&val, G_TYPE_OBJECT);
+  g_object_get_property(ptr, "window", &val);
+  GdkWindow * win = g_value_get_object(&val);
+  if (!win) y_error("Cannot get Gdk window");
+  gy_Object * out = ypush_gy_Object();
+  out -> object = win;
+  out -> repo = o -> repo;
+  out -> info = g_irepository_find_by_name(o->repo,
+					   "Gdk",
+					   "Window");
 }
 
 void

@@ -12,14 +12,14 @@ func hello(wdg) {
   "Hello World!";
 }
 
-gy_signal_connect, button, "clicked", "hello";
+gy_signal_connect, button, "clicked", hello;
 
 func winhide(wdg, evt) {
   noop, wdg.hide();
   noop, gy.Gtk.main_quit();
 }
 
-gy_signal_connect(win, "delete-event", "winhide");
+gy_signal_connect(win, "delete-event", winhide);
 
 noop, win.show_all();
 noop, Gtk.main();
@@ -31,7 +31,7 @@ main_window_name="window1";
 yorick_window_name="yorick_window";
 Gtk=gy.Gtk;
 Gtk.init_check(0,);
-gy_setlocale, "C";
+gy_setlocale;
 builder = Gtk.Builder.new();
 builder.add_from_file(glade_file_name);
 win = builder.get_object(main_window_name);
@@ -45,7 +45,7 @@ func on_ywin_event(widget, event) {
    window, parent=gy_xid(widget);
 }
 gy_signal_connect, ywin, "event", "on_ywin_event";
-gy_signal_connect, win, "delete_event", "__gyterm_suspend";
+gy_signal_connect, win, "delete-event", "__gyterm_suspend";
 win.show_all()
 Gtk.main()
 */
