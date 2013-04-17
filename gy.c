@@ -990,6 +990,7 @@ Y_gy_list_object(int argc) {
 }
 
 ////  generic callbacks
+static gboolean gy_callback_retval;
 
 void gy_callback0(void* arg1, gy_signal_data* sd) {
   GY_DEBUG("in gy_callback0()\n");
@@ -1036,6 +1037,11 @@ void gy_callback0(void* arg1, gy_signal_data* sd) {
 
 }
 
+gboolean gy_callback0_bool(void* arg1, gy_signal_data* sd) {
+  gy_callback_retval=0;
+  gy_callback0(arg1, sd) ;
+  return gy_callback_retval;
+}
 
 void gy_callback1(void* arg1, void* arg2, gy_signal_data* sd) {
   const char * cmd = sd -> cmd;
@@ -1087,6 +1093,18 @@ void gy_callback1(void* arg1, void* arg2, gy_signal_data* sd) {
   yexec_include(0,1);
   yarg_drop(ndrops);
 
+}
+
+gboolean gy_callback1_bool(void* arg1, void* arg2, gy_signal_data* sd) {
+  gy_callback_retval=0;
+  gy_callback1(arg1, arg2, sd) ;
+  return gy_callback_retval;
+}
+
+void
+Y_gy_return(int argc)
+{
+  gy_callback_retval=ygets_l(0);
 }
 
 void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) {
@@ -1148,6 +1166,13 @@ void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) {
 
 }
 
+gboolean gy_callback2_bool(void* arg1, void* arg2, void*arg3,
+			   gy_signal_data* sd) {
+  gy_callback_retval=0;
+  gy_callback2(arg1, arg2, arg3, sd) ;
+  return gy_callback_retval;
+}
+
 ///// end callbacks
 
 void
@@ -1198,14 +1223,34 @@ Y_gy_signal_connect(int argc) {
   sd -> cmd = cmd;
   sd -> repo = o -> repo;
 
-  GCallback * callbacks[]={(GCallback*)&gy_callback0,
-			   (GCallback*)&gy_callback1,
-			   (GCallback*)&gy_callback2};
+  GCallback * voidcallbacks[]={(GCallback*)(&gy_callback0),
+			       (GCallback*)(&gy_callback1),
+			       (GCallback*)(&gy_callback2)};
+  GCallback * gbooleancallbacks[]={(GCallback*)(&gy_callback0_bool),
+				   (GCallback*)(&gy_callback1_bool),
+				   (GCallback*)(&gy_callback2_bool)};
+
+  GCallback * * callbacks=NULL;
+
   gint nargs = g_callable_info_get_n_args (cbinfo);
   GY_DEBUG("Callback takes %d arguments\n", nargs);
   
+  GITypeInfo * retinfo = g_callable_info_get_return_type (cbinfo);
+  GITypeTag    rettag  = g_type_info_get_tag(retinfo); 
+  g_base_info_unref(retinfo);
+  switch(rettag) {
+  case GI_TYPE_TAG_VOID:
+    callbacks=voidcallbacks;
+    break;
+  case GI_TYPE_TAG_BOOLEAN:
+    callbacks=gbooleancallbacks;
+    break;
+  default:
+    y_errorq("unimplemented output type for callback: %",
+	     g_type_tag_to_string (rettag));
+  }
 
-  if (nargs>2) y_errorn("unimplmented: callback with %ld arguments", nargs);
+  if (nargs>2) y_errorn("unimplemented: callback with %ld arguments", nargs);
 
   GY_DEBUG("Callback address: %p\n", callbacks[nargs]);
 
