@@ -211,7 +211,7 @@ func gy_gtk_entry_include(widget) {
   noop, widget.set_tooltip_text("Yorick command");
 }
 
-func gy_gtk_window_suspend(window)
+func gy_gtk_window_suspend(win)
 /* DOCUMENT gy_gtk_window_suspend, window
    
     Connect a standard handler to the delete event of WINDOW.
@@ -223,7 +223,7 @@ func gy_gtk_window_suspend(window)
    SEE ALSO: gy, gyterm, gy_gtk_entry_include
  */
 {
-  gy_signal_connect, window, "delete-event", __gyterm_suspend;
+  gy_signal_connect, win, "delete-event", __gyterm_suspend;
 }
 
 func __gyterm_suspend(widget, event) {
@@ -423,7 +423,8 @@ func __gywindow_on_error (void) {
 
 func __gywindow_event_handler(widget, event) {
   extern __gywindow, __gywindow_xs0, __gywindow_ys0, __gywindow_device;
-
+  local curwin;
+  
   after_error=__gywindow_on_error;
 
   cur = __gywindow_find_by_xid(gy_xid(widget));
@@ -547,7 +548,7 @@ func __gywindow_event_handler(widget, event) {
     gy_gtk_idleonce;
   }
 
-  window, curwin;
+  if (!is_void(curwin) && curwin>=0) window, curwin;
   
   if (type == EventType.motion_notify) {
     if (x<0 || y<0 || x>455 || y>455) {
