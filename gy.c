@@ -1264,22 +1264,6 @@ Y_gy_signal_connect(int argc) {
 //// hack, should be done from gi
 
 void
-Y_gy_xid(int argc) {
-  gy_Object * o = yget_gy_Object(0);
-  GObject * ptr = o->object;
-  if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
-  GValue val = G_VALUE_INIT;
-  g_value_init(&val, G_TYPE_OBJECT);
-  g_object_get_property(ptr, "window", &val);
-  GdkWindow * win = g_value_get_object(&val);
-  if (!win) {
-    ypush_nil();
-    return;
-  }
-  ypush_long(GDK_WINDOW_XID(win));
-}
-
-void
 Y_gy_gdk_window(int argc) {
   gy_Object * o = yget_gy_Object(0);
   GObject * ptr = o->object;

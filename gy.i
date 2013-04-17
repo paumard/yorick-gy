@@ -734,7 +734,7 @@ extern gy_gdk_window;
    SEE ALSO: gy, gy_xid
  */
 
-extern gy_xid;
+func gy_xid(wdg)
 /* DOCUMENT id=gy_xid(wdg)
    
      Get X11 window ID associated with widget WDG.
@@ -751,14 +751,11 @@ extern gy_xid;
      
    SEE ALSO: gy, gy_gdk_window
  */
-/*
+
 {
-  // For some reason, this interpreted version does not work:
-  // the yorick window appears on top of the drawing area,
-  // but detached, with its own window borders!
-  gy.GdkX11.X11Window(gy_gdk_window(__gywindow_win)).get_xid();
+  return gy.GdkX11.X11Window(gy_gdk_window(wdg)).get_xid();
 }
-*/
+
 
 
 extern gy_debug;
