@@ -35,6 +35,9 @@ local gy;
 
      - gywindow is a wrapper for Yorick windows (work in progress).
 
+    gyterm and gywindow can be easily embedded in custom applications
+    (indeed, gyterm *is* embedded in both gycmap and gywindow).
+
    DETAILS
     Any library providing gobject-introspection can be accessed
     through this plug-in, as long as the gobject-introspection
@@ -419,11 +422,14 @@ func __gywindow_on_error (void) {
 }
 
 func __gywindow_event_handler(widget, event) {
-  extern __gywindow_win, __gywindow_xlabel, __gywindow_ylabel,
-    __gywindow_xs0, __gywindow_ys0, __gywindow_device;
+  extern __gywindow, __gywindow_xs0, __gywindow_ys0, __gywindow_device;
 
   after_error=__gywindow_on_error;
-    
+
+  cur = __gywindow_find_by_xid(gy_xid(widget));
+  if (is_void(cur)) return;
+
+  
   ev = gy.Gdk.EventAny(event);
   ev, type, type;
 
@@ -432,10 +438,13 @@ func __gywindow_event_handler(widget, event) {
   EventType=Gdk.EventType;
   
   if (type == EventType.map) {
-    window, parent=gy_xid(widget), ypos=-24 ;
+    window, cur.yid, parent=gy_xid(widget), ypos=-24 ;
+    save, cur, realized=1;
     if (Gtk.main_level()) gy_gtk_idleonce;
     return;
   }
+
+  if (!cur.realized) return;
   
   if (type == EventType.enter_notify) {
     __gywindow_device = Gdk.Device(Gtk.get_current_event_device());
@@ -458,6 +467,9 @@ func __gywindow_event_handler(widget, event) {
   if (type == EventType.button_release ||
       type == EventType.button_press ||
       type == EventType.motion_notify) {
+    curwin = current_window();
+    window, cur.yid;
+    
     ev = Gdk.EventButton(ev);
     ev, x, x, y, y, button, button, state, state;
 
@@ -502,7 +514,6 @@ func __gywindow_event_handler(widget, event) {
     else __gywindow_xs0=[];
     if (yndc >= vp(3) && yndc <= vp(4)) __gywindow_ys0=ys;
     else __gywindow_ys0=[];
-    return;
   }
 
   if (type == EventType.button_release) {
@@ -517,7 +528,6 @@ func __gywindow_event_handler(widget, event) {
     
     if (!is_void(__gywindow_xs0)) {
       if (xlog) {
-        if (xs==0. || __gywindow_xs0==0.) return;
         lm2(1:2)=__gywindow_xs0 / (xs/lm(1:2))^fact;
       } else {
         lm2(1:2)=__gywindow_xs0 - (xs-lm(1:2))*fact;
@@ -527,7 +537,6 @@ func __gywindow_event_handler(widget, event) {
 
     if (!is_void(__gywindow_ys0)) {
       if (ylog) {
-        if (ys==0. || __gywindow_ys0==0.) return;
         lm2(3:4)=__gywindow_ys0 / (ys/lm(3:4))^fact;
       } else {
         lm2(3:4)=__gywindow_ys0 - (ys-lm(3:4))*fact;
@@ -536,16 +545,16 @@ func __gywindow_event_handler(widget, event) {
     }
     
     gy_gtk_idleonce;
-    return;
   }
 
+  window, curwin;
+  
   if (type == EventType.motion_notify) {
     if (x<0 || y<0 || x>455 || y>455) {
       noop, __gywindow_device.ungrab(Gdk.CURRENT_TIME);
       return;
     }
-    noop, __gywindow_xlabel.set_text(pr1(xs));
-    noop, __gywindow_ylabel.set_text(pr1(ys));
+    noop, cur.xylabel.set_text("("+pr1(xs)+", "+pr1(ys)+")");
     return;
   }
   
@@ -568,31 +577,46 @@ func gy_gtk_idleonce(void)
   set_idler, __gyterm_idler;
 }
 
-func __gywindow_init(void) {
-  extern __gywindow_win, __gywindow_xlabel, __gywindow_ylabel;
+if (is_void(__gywindow)) __gywindow=save();
+
+func gy_gtk_window_connect(yid, win, da, xylabel)
+/* DOCUMENT gy_gtk_window_connect, yid, win, da, xylabel
+   
+    Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
+    gywindow for a trivial example).
+
+   ARGUMENTS
+    yid: Yorick window ID to embed
+    win: the toplevel gy.Gtk.Window widget
+    da:  the gy.Gtk.DrawingArea in which the yorick window will be embedded.
+    xylabel: gy.Gtk.Entry widget in which to report mouse motion.
+
+   SEE ALSO: gy, gywindow
+ */
+{
+  extern __gywindow;
+  gy_signal_connect, da, "event", __gywindow_event_handler;
+  save, __gywindow, "", save(yid, xid=[], win, da, xylabel, realized=0);
+}
+
+func __gywindow_init(yid) {
+  extern __gywindow;
   Gtk=gy.Gtk;
   noop, Gtk.init_check(0,);
   gy_setlocale;
-  __gywindow_win = Gtk.Window.new(Gtk.WindowType.toplevel);
-  gy_gtk_window_suspend, __gywindow_win;
+  win = Gtk.Window.new(Gtk.WindowType.toplevel);
+  noop, win.set_title("Yorick "+pr1(yid));
+  gy_gtk_window_suspend, win;
   box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
-  noop, __gywindow_win.add(box);
+  noop, win.add(box);
 
   box2=Gtk.Box.new(Gtk.Orientation.horizontal, 0);
   noop, box.pack_start(box2, 0,0,0);
 
-  label=Gtk.Label.new(" x = ");
-  noop, box2.pack_start(label, 0, 0, 0);
-  __gywindow_xlabel=Gtk.Label.new("");
-  noop, box2.pack_start(__gywindow_xlabel, 0, 0, 0);
+  xylabel=Gtk.Label.new("");
+  noop, box2.pack_start(xylabel, 0, 0, 0);
     
-  label=Gtk.Label.new(" y = ");
-  noop, box2.pack_start(label, 0, 0, 0);
-  __gywindow_ylabel=Gtk.Label.new("");
-  noop, box2.pack_start(__gywindow_ylabel, 0, 0, 0);
-
   da = Gtk.DrawingArea.new();
-  gy_signal_connect, da, "event", __gywindow_event_handler;
   noop, da.add_events(gy.Gdk.EventMask.all_events_mask);
   noop, da.set_size_request(454, 453);
   noop, box.pack_start(da, 1, 1, 0);
@@ -600,24 +624,61 @@ func __gywindow_init(void) {
   entry=Gtk.Entry.new();
   gy_gtk_entry_include, entry;
   noop, box.pack_start(entry, 1,1,0);
-
+  
+  gy_gtk_window_connect, yid, win, da, xylabel;
 }
 
-func gywindow(wid)
-/* DOCUMENT gywindow
-   *** work in progress ***
+func __gywindow_find_by_xid(xid)
+{
+  extern __gywindow;
+  if (is_void(__gywindow)) return;
+  nwins = __gywindow(*);
+  for (oid=1; oid<=nwins; ++oid) {
+    cur=__gywindow( (nothing=oid) );
+    cxid=cur.xid;
+    if (is_void(cxid)) {
+      cxid=gy_xid(cur.da);
+      if (!is_void(cxid)) save, cur, xid=cxid;
+    }
+    if (cxid==xid) return cur;
+  }
+}
 
-   When the Gtk main loop is running, the Yorick main loop is
-   stuck. This prevents things like window zooming to happen.
+func __gywindow_find_by_yid(yid)
+{
+  extern __gywindow;
+  if (is_void(__gywindow)) return;
+  nwins = __gywindow(*);
+  for (oid=1; oid<=nwins; ++oid) {
+    if ((cur=__gywindow( (nothing=oid) )).yid==yid) return cur;
+  }
+}
 
-   The goal of gywindow is to provide a Yorick window wrapper which
-   would emulate Yorick's native behavior for Gtk-embedded windows.
+func gywindow(yid)
+/* DOCUMENT gywindow, yid
 
-   SEE ALSO: gyterm
+    When the Gtk main loop is running, the Yorick main loop is
+    stuck. This prevents things like window zooming to
+    happen. gywindow embeds Yorick window YID in a Gtk window and
+    emulates zooming etc. If YID already exists, it is first killed
+    and its content erased.
+
+    If you are interested in embedding a Yorick window in your own
+    application, have a look at gy_window_connect.
+
+   SEE ALSO: gyterm, gy_window_connect
 */
 {
-  if (is_void(__gywindow_win)) __gywindow_init;
-  noop, __gywindow_win.show_all();
+  if (is_void(yid)) {
+    yid = current_window();
+    if (yid<0) yid=0;
+  }
+  if (is_void(__gywindow_find_by_yid(yid)))
+    {
+      winkill, yid;
+      __gywindow_init, yid;
+    }
+  noop, __gywindow_find_by_yid(yid).win.show_all();
   noop, gy.Gtk.main();
 }
 

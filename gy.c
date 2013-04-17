@@ -1216,7 +1216,10 @@ Y_gy_xid(int argc) {
   g_value_init(&val, G_TYPE_OBJECT);
   g_object_get_property(ptr, "window", &val);
   GdkWindow * win = g_value_get_object(&val);
-  if (!win) y_error("Cannot get Gdk window");
+  if (!win) {
+    ypush_nil();
+    return;
+  }
   ypush_long(GDK_WINDOW_XID(win));
 }
 
