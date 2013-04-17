@@ -948,6 +948,14 @@ Y_gy_list_object(int argc) {
       g_base_info_unref(gmi);
     }
 
+    printf("Available fields:\n");
+    n = g_object_info_get_n_fields(o->info);
+    for (i=0; i<n; ++i) {
+      gmi = g_object_info_get_field (o->info, i);
+      printf("  Field #%d=%s\n", i, g_base_info_get_name(gmi));
+      g_base_info_unref(gmi);
+    }
+
     printf("Available methods:\n");
     n = g_object_info_get_n_methods (o->info);
     printf("Object has %d methods(s)\n", n);
