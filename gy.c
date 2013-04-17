@@ -265,18 +265,21 @@ gy_Object_extract(void *obj, char * name)
     return;
   }
 
-  gboolean isstruct=GI_IS_STRUCT_INFO(o->info),
-    isobject=GI_IS_OBJECT_INFO(o->info);
+  gboolean isstruct = GI_IS_STRUCT_INFO(o->info),
+    isobject = GI_IS_OBJECT_INFO(o->info),
+    isitrf = GI_IS_INTERFACE_INFO(o->info);
 
-  if (isstruct || isobject) {
+  if (isstruct || isobject || isitrf) {
     
     GIBaseInfo * info =NULL;
 
     GY_DEBUG("Looking for symbol %s in %s\n",
 	   name,
 	   g_base_info_get_name(o->info));
-    if (GI_IS_OBJECT_INFO(o->info))
+    if (isobject)
       info = g_object_info_find_method (o->info, name);
+    else if (isitrf)
+      info = g_interface_info_find_method (o->info, name);
     else
       info = g_struct_info_find_method (o->info, name);
 
@@ -685,7 +688,7 @@ gy_Object_eval(void *obj, int argc)
     return;
   }
 
-  if (GI_IS_OBJECT_INFO(o->info)) {
+  if (GI_IS_OBJECT_INFO(o->info) || GI_IS_INTERFACE_INFO(o->info)) {
     gy_Object* out = ypush_gy_Object(0);
     if(!o->object) {
       if (yarg_gy_Object(argc))

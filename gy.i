@@ -161,7 +161,7 @@ extern gy_signal_connect;
 
 func __gyterm_init(void) {
   require,  "string.i";
-  extern __gyterm_initialized, __gyterm_win;
+  extern __gyterm_initialized, __gyterm_win, __gyterm_entry;
   Gtk=gy.Gtk;
   noop, Gtk.init_check(0,);
   gy_setlocale;
@@ -186,13 +186,89 @@ func __gyterm_entry_activated(widget, user_data) {
   if (cmd != "") include, strchar("if (catch(-1)) {return;} "+cmd), 1;
 }
 
+if (is_void(__gyterm_history_size)) __gyterm_history_size=100;
+__gyterm_history=array(string, __gyterm_history_size);
+__gyterm_idx=__gyterm_cur=1;
+__gyterm_max=0;
+
 func __gyterm_key_pressed(widget, event) {
-  ev = gy.Gdk.EventKey(event);
+  extern __gyterm_history, __gyterm_cur, __gyterm_max, __gyterm_idx;
+  // not yet ready.
+  // try to get key events to navigate through history
+  Gdk=gy.Gdk;
+  Gtk=gy.Gtk;
+  ev = Gdk.EventKey(event);
   ev, keyval, keyval;
-  if (keyval!=gy.Gdk.KEY_Return) return;
-  gy_gtk_idleonce;
-  cmd=widget.get_text();
-  include, strchar("if (catch(-1)) {return;} "+cmd), 1;
+  if (keyval==Gdk.KEY_Return) {
+    gy_gtk_idleonce;
+    cmd=widget.get_text();
+    noop, widget.set_text("");
+    __gyterm_history(__gyterm_cur)=cmd;
+    __gyterm_cur=(__gyterm_cur<numberof(__gyterm_history))?__gyterm_cur+1:1;
+    __gyterm_max=min(numberof(__gyterm_history), __gyterm_max+1);
+    __gyterm_idx=__gyterm_cur;
+    write, format="> %s\n", cmd;
+    include, strchar("if (catch(-1)) {return;} "+cmd), 1;
+    return;
+  }
+  if (keyval==Gdk.KEY_Up) {
+    if (__gyterm_idx==__gyterm_cur) {
+      __gyterm_history(__gyterm_cur)=widget.get_text();
+      if (__gyterm_max<__gyterm_cur) __gyterm_max=__gyterm_cur;
+    }
+    __gyterm_idx=(__gyterm_idx==1)?__gyterm_max:__gyterm_idx-1;
+    noop, widget.set_text(__gyterm_history(__gyterm_idx));
+    return;
+  }
+  if (keyval==Gdk.KEY_Down) {
+    __gyterm_idx=(__gyterm_idx==__gyterm_max)?1:__gyterm_idx+1;
+    noop, widget.set_text(__gyterm_history(__gyterm_idx));
+    return;
+  }
+
+  if (anyof(keyval==
+            [
+             Gdk.KEY_Control_L,
+             Gdk.KEY_Control_R,
+             Gdk.KEY_Meta_L,
+             Gdk.KEY_Meta_R,
+             Gdk.KEY_Alt_L,
+             Gdk.KEY_Alt_R,
+             Gdk.KEY_Shift_L,
+             Gdk.KEY_Shift_Lock,
+             Gdk.KEY_Shift_R,
+             Gdk.KEY_Num_Lock,
+             Gdk.KEY_Caps_Lock,
+             Gdk.KEY_ModeLock,
+             Gdk.KEY_Mode_switch,
+             Gdk.KEY_ISO_Level3_Shift,
+             Gdk.KEY_Super_L,
+             Gdk.KEY_Super_R,
+             Gdk.KEY_Multi_key
+             ]))
+    return;
+  
+  pos=Gtk.Editable(widget).get_position();
+
+  if (keyval==Gdk.KEY_Left) {
+    noop, Gtk.Editable(widget).set_position(pos-1);
+    return;
+  }
+  if (keyval==Gdk.KEY_Right) {
+    noop, Gtk.Editable(widget).set_position(pos+1);
+    return;
+  }
+  if (keyval==Gdk.KEY_BackSpace) {
+    noop, Gtk.Editable(widget).delete_text(pos-1, pos);
+    noop, Gtk.Editable(widget).set_position(pos-1);
+    return;
+  }
+  if (keyval==Gdk.KEY_Delete) {
+    noop, Gtk.Editable(widget).delete_text(pos, pos+1);
+    return;
+  }
+  noop, widget.get_buffer().insert_text(pos,strchar(char(keyval)), 1);
+  noop, Gtk.Editable(widget).set_position(pos+1);
 }
 
 func gy_gtk_entry_include(widget) {
@@ -206,7 +282,8 @@ func gy_gtk_entry_include(widget) {
 
    SEE ALSO: gy, gyterm, gy_gtk_window_suspend
  */
-  gy_signal_connect, widget, "activate", __gyterm_entry_activated;
+  //gy_signal_connect, widget, "activate", __gyterm_entry_activated;
+  gy_signal_connect, widget, "key-press-event", __gyterm_key_pressed;
   noop, widget.set_placeholder_text("Yorick command");
   noop, widget.set_tooltip_text("Yorick command");
 }
