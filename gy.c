@@ -17,46 +17,7 @@
     along with gy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <girepository.h>
-#include <glib-object.h>
-
-#include "yapi.h"
-#include "pstdlib.h"
-
-#include <stdio.h>
-#include <fenv.h>
-#include <string.h>
-#include <signal.h>
-#include <locale.h>
-//#include <pthread.h>
-//#include <stdio.h>
-
-typedef struct _gy_signal_data {
-  GIBaseInfo * info;
-  GIRepository * repo;
-  char * cmd;
-  void * data;
-} gy_signal_data;
-
-static gboolean _gy_debug=0;
-#define GY_DEBUG( ... ) \
-  if (_gy_debug) fprintf(stderr, "GY DEBUG: " __VA_ARGS__ );
-
-typedef struct _gy_Object {
-  GIBaseInfo * info;
-  GObject * object;
-  GIRepository * repo;
-} gy_Object;
-gy_Object* yget_gy_Object(int);
-gy_Object* ypush_gy_Object();
-void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o);
-
-typedef struct _gy_Repository {
-  GIRepository * repo;
-  char * method;
-} gy_Repository;
-gy_Repository* yget_gy_Repository(int);
-gy_Repository* ypush_gy_Repository();
+#include "gy.h"
 
 /// TYPELIB
 
@@ -75,16 +36,6 @@ void gy_sa_handler(int sig) {
   y_errorq("gy action received signal %s", ssig);
 }
 
-typedef struct _gy_Typelib {
-  GITypelib * typelib;
-  gchar * namespace;
-  GIRepository * repo;
-} gy_Typelib;
-
-void gy_Typelib_free(void *obj);
-void gy_Typelib_print(void *obj);
-//void gy_Typelib_eval(void *obj, int argc);
-void gy_Typelib_extract(void *, char *);
 static y_userobj_t gy_Typelib_obj =
   {"gy_Typelib",
    &gy_Typelib_free,
@@ -138,111 +89,8 @@ gy_Typelib* ypush_gy_Typelib() {
   return (gy_Typelib*) ypush_obj(&gy_Typelib_obj, sizeof(gy_Typelib));
 }
 
-
-/// GYREPOSITORY
-
-//void gy_Repository_free(void *obj);
-void gy_Repository_print(void *obj);
-void gy_Repository_eval(void *obj, int argc);
-void gy_Repository_extract(void *, char *);
-static y_userobj_t gy_Repository_obj =
-  {"gy_Repository",
-   NULL, //&gy_Repository_free,
-   &gy_Repository_print,
-   &gy_Repository_eval,
-   &gy_Repository_extract,
-   NULL  //&uo_ops
-  };
-
-void gy_Repository_print(void *obj){
-  gy_Repository * r = (gy_Repository *) obj;
-  gchar ** nspcs = g_irepository_get_loaded_namespaces(r->repo);
-  if (!nspcs) {
-    y_print("gy_Repository without any loaded namespaces", 0);
-    return;
-  }
-  y_print("gy_Repository with loaded namespaces:", 1);
-  for (;*nspcs;++nspcs) y_print(*nspcs, 1);
-}
-
-void
-gy_Repository_extract(void *obj, char * name)
-{
-  gy_Repository * r = (gy_Repository *) obj;
-  GError * err;
-
-  if (!strcmp(name, "require")) {
-    gy_Repository* out = ypush_gy_Repository();
-    out->repo = r->repo;
-    out->method=name;
-    return;
-  }
-
-  /// push output
-  gy_Typelib * tl = ypush_gy_Typelib();
-
-  tl -> namespace = p_strcpy(name);
-  tl -> repo      = r -> repo,
-  tl -> typelib   = g_irepository_require (r->repo,
-					   name,
-					   NULL,
-					   0,
-					   &err);
-  if (!tl->typelib) y_error(err->message);
-
-}
-
-void
-gy_Repository_eval(void *obj, int argc)
-{
-  gy_Repository* r = (gy_Repository*) obj;
-  if (!r->method) y_error("Object is not callable");
-  if (!strcmp(r->method, "require")) {
-    GError * err=NULL;
-
-    /// process input
-    ystring_t namespace = ygets_q(argc-1);
-    ystring_t version = NULL;
-    if (argc>=2) version=ygets_q(argc-2);
-    GIRepositoryLoadFlags flags=0;
-    if (argc>=3) flags=ygets_l(argc-3);
-
-    /// push output
-    gy_Typelib * tl = ypush_gy_Typelib();
-
-    tl -> namespace = p_strcpy(namespace);
-    tl -> repo      = r->repo;
-    tl -> typelib   = g_irepository_require (r->repo,
-					     namespace,
-					     version,
-					     flags,
-					     &err);
-    if (!tl->typelib) y_error(err->message);
-   
-    return;
-  }
-
-  y_error("Unknown repository method");
-}
-
-
-gy_Repository* yget_gy_Repository(int iarg) {
-  return (gy_Repository*) yget_obj(iarg, &gy_Repository_obj);
-}
-
-gy_Repository* ypush_gy_Repository() {
-  gy_Repository* out = ypush_obj(&gy_Repository_obj, sizeof(gy_Repository));
-  out->method=0;
-  return out;
-}
-
-
 /// GIBASEINFO
 
-void gy_Object_free(void *obj);
-void gy_Object_print(void *obj);
-void gy_Object_eval(void *obj, int argc);
-void gy_Object_extract(void *, char *);
 static y_userobj_t gy_Object_obj =
   {"gy_Object",
    &gy_Object_free,
@@ -1452,6 +1300,10 @@ Y_gy_signal_connect(int argc) {
 		    sd);
   ypush_nil();
 }
+
+static gboolean _gy_debug = 0;
+
+gboolean gy_debug() { return _gy_debug; }
 
 void
 Y_gy_debug(int argc)
