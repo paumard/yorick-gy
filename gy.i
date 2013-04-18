@@ -216,7 +216,7 @@ func __gyterm_key_pressed(widget, event) {
     __gyterm_max=min(numberof(__gyterm_history), __gyterm_max+1);
     __gyterm_idx=__gyterm_cur;
     write, format="> %s\n", cmd;
-    include, strchar("if (catch(-1)) {return;} "+cmd), 1;
+    include, strchar("if (catch(-1)) {gyerror, catch_message; return;} "+cmd), 1;
     gy_return, 1;
     return;
   }
@@ -749,6 +749,30 @@ func gywindow(yid)
     }
   gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
+
+//// error message
+
+func __gyerror_init(void) {
+  extern __gyerror_win, __gyerror_msgarea, __gyerror_initialized;
+  noop, gy.Gtk.init(0, );
+  gy_setlocale;
+  __gyerror_win = gy.Gtk.Window.new(gy.Gtk.WindowType.toplevel);
+  __gyerror_msgarea=gy.Gtk.Label.new("");
+  noop, __gyerror_win.add(__gyerror_msgarea);
+  __gyerror_initialized=1;
+}
+
+func gyerror(msg)
+/* DOCUMENT gyerror, msg
+     Display error message in a Gtk window.
+ */
+{
+  if (!__gyerror_initialized) __gyerror_init;
+  noop, __gyerror_msgarea.set_text(msg);
+  gy_gtk_main,__gyerror_win;
+}
+
+//// utilities
 
 func gy_xid(wdg)
 /* DOCUMENT id=gy_xid(wdg)

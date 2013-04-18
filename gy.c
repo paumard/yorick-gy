@@ -743,6 +743,7 @@ gy_Object_eval(void *obj, int argc)
       GY_DEBUG("property: %s\n",name);
       if (isobject) n = g_object_info_get_n_properties(o->info);
       else  n = g_interface_info_get_n_properties(o->info);
+      GY_DEBUG("object has %d properties.\n", n);
       for (i=0; i<n; ++i) {
 	GY_DEBUG("i=%d/%d\n", i, n);
 	cur = isobject?
@@ -1012,75 +1013,142 @@ Y_gy_list_object(int argc) {
 
   gboolean isobject=GI_IS_OBJECT_INFO(o->info);
   gboolean isstruct=GI_IS_STRUCT_INFO(o->info);
+  gboolean isitrf=GI_IS_INTERFACE_INFO(o->info);
+  gboolean isenum=GI_IS_ENUM_INFO(o->info);
+
+  char * itype="n unknown";
+  if (isobject) itype=" GObject";
+  else if (isitrf) itype=" GInterface";
+  else if (isstruct) itype=" C structure";
+  else if (isenum) itype="n enumeration";
+
+  printf("Object is a%s.\n", itype);
+
+  gint i=0, n=0;
 
   if (o->object) {
     printf("with object at %p\n", o->object);
     if (isobject) printf("Object type: %s\n", G_OBJECT_TYPE_NAME(o->object));
   }
-  if (isstruct) {
-    gint i, n = g_struct_info_get_n_fields(o->info);
+
+  /* values */
+  if (isenum) {
+    n = g_enum_info_get_n_values (o->info);
+    GIValueInfo * ci ;
+    printf ("Object has %d enum values\n", n);
+    for (i=0; i<n; ++i) {
+      ci = g_enum_info_get_value(o->info, i);
+      printf("  Enum name: %s, value: %ld\n",
+	     g_base_info_get_name (ci),
+	     g_value_info_get_value(ci));
+    }
+  }
+
+  /* fields */
+  if (isstruct || isobject) {
+    n = isstruct?
+      g_struct_info_get_n_fields(o->info):
+      g_object_info_get_n_fields(o->info);
+    GIBaseInfo * cur=NULL;
+    printf ("Object has %d fields\n", n);
+    for (i=0; i<n; ++i) {
+      cur = isstruct?
+	g_struct_info_get_field (o->info, i):
+	g_object_info_get_field (o->info, i);
+      printf("  Field #%d=%s\n", i, g_base_info_get_name(cur));
+      g_base_info_unref(cur);
+    }
+  }
+
+  /* properties */
+  if (isitrf || isobject) {
+    n = isitrf?
+      g_interface_info_get_n_properties(o->info):
+      g_object_info_get_n_properties(o->info);
+    GIPropertyInfo * cur=NULL;
+    printf ("Object has %d properties\n", n);
+    for (i=0; i<n; ++i) {
+      cur = isitrf?
+	g_interface_info_get_property (o->info, i):
+	g_object_info_get_property (o->info, i);
+      printf("  %s\n", g_base_info_get_name(cur));
+      g_base_info_unref(cur);
+    }
+  }
+
+  /* methods */
+  if (isstruct || isobject || isitrf || isenum) {
+    if (isstruct) n = g_struct_info_get_n_methods(o->info);
+    else if (isobject) n = g_object_info_get_n_methods(o->info);
+    else if (isitrf) n = g_interface_info_get_n_methods(o->info);
+    else if (isenum) n = g_enum_info_get_n_methods(o->info);
+    printf("Object has %d methods\n", n);
     GIBaseInfo * cur=NULL;
     for (i=0; i<n; ++i) {
-      cur = g_struct_info_get_field (o->info, i);
-      printf("Field #%d=%s\n", i, g_base_info_get_name(cur));
+      if (isstruct) cur = g_struct_info_get_method (o->info, i);
+      else if (isobject) cur = g_object_info_get_method (o->info, i);
+      else if (isitrf) cur = g_interface_info_get_method (o->info, i);
+      else if (isenum) cur = g_enum_info_get_method (o->info, i);
+      printf("  %s\n", g_base_info_get_name(cur));
       g_base_info_unref(cur);
     }
-    n = g_struct_info_get_n_methods(o->info);
-    for (i=0; i<n; ++i) {
-      cur = g_struct_info_get_method (o->info, i);
-      printf("Field #%d=%s\n", i, g_base_info_get_name(cur));
-      g_base_info_unref(cur);
-    }
-    
-  } else if (GI_IS_ENUM_INFO(o->info)) {
-    gint nc = g_enum_info_get_n_values (o->info);
-    GIValueInfo * ci ;
-    gint i;
-    for (i=0; i<nc; ++i) {
-      ci = g_enum_info_get_value(o->info, i);
-      printf("Enum name: %s\n", g_base_info_get_name (ci));
-    }
-  } else if (isobject) {
+  }
 
-    printf("Available vfuncs:\n");
-    int i, n = g_object_info_get_n_vfuncs (o->info);
-    printf("Object has %d vfuncs(s)\n", n);
+  /* signals */
+  if (isobject || isitrf) {
+    n = isobject?
+      g_object_info_get_n_signals (o->info):
+      g_interface_info_get_n_signals (o->info);
+    printf("Object has %d signals(s)\n", n);
+    GIBaseInfo * gmi=NULL;
+    for (i=0; i<n; ++i) {
+      gmi=isobject?
+	g_object_info_get_signal(o->info, i):
+	g_interface_info_get_signal(o->info, i);
+      printf("  %s\n", g_base_info_get_name (gmi));
+      g_base_info_unref(gmi);
+    }
+  }
+
+  /* vfuncs */
+  if (isobject || isitrf) {
+
+    n = isobject?
+      g_object_info_get_n_vfuncs (o->info):
+      g_interface_info_get_n_vfuncs (o->info);
+    printf("Object has %d vfunc(s)\n", n);
     GIFunctionInfo * gmi;
     for (i=0; i<n; ++i) {
-      gmi=g_object_info_get_vfunc(o->info, i);
+      gmi=isobject?
+	g_object_info_get_vfunc(o->info, i):
+	g_interface_info_get_vfunc(o->info, i);
       printf("  %s\n", g_base_info_get_name (gmi));
       g_base_info_unref(gmi);
     }
+  }
 
-    printf("Available fields:\n");
-    n = g_object_info_get_n_fields(o->info);
-    for (i=0; i<n; ++i) {
-      gmi = g_object_info_get_field (o->info, i);
-      printf("  Field #%d=%s\n", i, g_base_info_get_name(gmi));
-      g_base_info_unref(gmi);
-    }
+  /* constants */
+  if (isobject || isitrf) {
 
-    printf("Available methods:\n");
-    n = g_object_info_get_n_methods (o->info);
-    printf("Object has %d methods(s)\n", n);
+    n = isobject?
+      g_object_info_get_n_constants (o->info):
+      g_interface_info_get_n_constants (o->info);
+    printf("Object has %d constant(s)\n", n);
+    GIConstantInfo * gmi;
     for (i=0; i<n; ++i) {
-      gmi=g_object_info_get_method(o->info, i);
+      gmi=isobject?
+	g_object_info_get_constant(o->info, i):
+	g_interface_info_get_constant(o->info, i);
       printf("  %s\n", g_base_info_get_name (gmi));
       g_base_info_unref(gmi);
     }
+  }
 
-    printf("Available signals:\n");
-    n = g_object_info_get_n_signals (o->info);
-    printf("Object has %d signals(s)\n", n);
-    for (i=0; i<n; ++i) {
-      gmi=g_object_info_get_signal(o->info, i);
-      printf("  %s\n", g_base_info_get_name (gmi));
-      g_base_info_unref(gmi);
-    }
-
+  if (isobject) {
     if (g_object_info_get_fundamental (o->info))
       printf("Object is fundamental\n");
     else {
+      GIBaseInfo * gmi=NULL;
       gmi = g_object_info_get_parent(o->info);
       if (gmi) {
 	printf("Object parent: %s\n", g_base_info_get_name(gmi));
