@@ -49,6 +49,10 @@ local gy;
     To load the GIR bindings for a given library, simply append the
     library's namespace to gy:
       Gtk = gy.Gtk;
+    To load a specific version of a namespace (good idea for public
+    code):
+      Gtk = gy.require("Gtk", "3.0");
+
     You can use gy_list_namespace to list the symbols inside this
     namespace:
       gy_list_namespace, Gtk;
@@ -58,7 +62,7 @@ local gy;
       gy_list_object, button;
     Callbacks can be connected to objects using gy_signal_connect.
 
-    gy simply exposes conforming librariy content to Yorick. See the
+    gy simply exposes conforming library content to Yorick. See the
     relevant library C API documentation for more details, for
     instance:
       https://developer.gnome.org/gtk3/stable/
@@ -75,16 +79,30 @@ local gy;
     where the decimal separator is not the English dot.
 
    EXAMPLE:
-    Gtk=gy.Gtk;
+    // Load namespace, checking version
+    Gtk = gy.require("Gtk", "3.0");
+
+    // Initialize Gtk
     Gtk.init_check(0,);
-    gy_setlocale("C");
+
+    // Gtk.init messes with the local, reset at least LC_NUMERIC
+    gy_setlocale;
+
+    // Create widget hierarchy
     win = Gtk.Window.new(Gtk.WindowType.toplevel);
     button = Gtk.Button.new_with_label("Hello World!");
     win.add(button);
+
+    // Write a callback
     func hello(widget, event, data) {
       "\"Hello World!\"";
     }
+
+    // Connect callback to button event
     gy_signal_connect, button, "clicked", hello;
+
+    // Connect standard "delete" event to window, show window,
+    // count it among the managed windows, and start Gtk main loop
     gy_gtk_main, win;
     
    SEE ALSO: gyterm, gycmap, gywindow
@@ -96,18 +114,6 @@ extern gy_init;
  */
 gy=gy_init();
 
-extern gy_require;
-/* DOCUMENT var = gy_require("NAMESPACE")
-         or var = gy.NAMESPACE
-
-    Load typelib corresponding to NAMESPCE in the repository.
-
-   EXAMPLE:
-    Gtk=gy.Gtk
-
-   SEE ALSO: gy
- */
-
 extern gy_list_namespace;
 /* DOCUMENT gy_list_namespace, NAMESPACE
    
@@ -116,6 +122,7 @@ extern gy_list_namespace;
 
    EXAMPLES:
     gy_list_namespace, "Gtk"
+    gy_list_namespace, gy.require("Gtk", "3.0")
     gy_list_namespace, gy.Gtk
     
    SEE ALSO: gy
@@ -162,7 +169,7 @@ extern gy_signal_connect;
 func __gyterm_init(void) {
   require,  "string.i";
   extern __gyterm_initialized, __gyterm_win, __gyterm_entry;
-  Gtk=gy.Gtk;
+  Gtk=gy.require("Gtk");
   noop, Gtk.init_check(0,);
   gy_setlocale;
   __gyterm_win = Gtk.Window.new(Gtk.WindowType.toplevel);
@@ -250,7 +257,7 @@ func gy_gtk_window_suspend(win)
     gy_gtk_main.
     
    EXAMPLE
-    noop, gy.Gtk.init(0,);
+    noop, gy.require("Gtk", "3.0").init(0,);
     gy_setlocale;
     win=gy.Gtk.Window.new(gy.Gtk.WindowType.toplevel);
     gy_gtk_main, win;
@@ -305,6 +312,8 @@ func __gycmap_init(void) {
     __gycmap_div_img, __gycmap_seq_img, __gycmap_qual_img,
     __gycmap_cur_names, __gycmap_gist_names;
 
+  Gtk=gy.require("Gtk", "3.0");
+  
   gist_png = find_in_path("gist-cmap.png", takefirst=1,
                           path=pathform(_(get_cwd(),
                                           _(Y_SITES,
@@ -317,35 +326,35 @@ func __gycmap_init(void) {
                                          Y_SITE)+"glade/")));
  
   
-  noop, gy.Gtk.init_check(0,);
+  noop, Gtk.init_check(0,);
   gy_setlocale;
-  __gycmap_gist_img = gy.Gtk.Image.new();
+  __gycmap_gist_img = Gtk.Image.new();
   noop, __gycmap_gist_img.set_from_file(gist_png);
   __gycmap_gist_names=
     ["gray", "yarg", "heat", "earth", "stern", "rainbow", "ncar"];
 
-  __gycmap_msh_img = gy.Gtk.Image.new();
+  __gycmap_msh_img = Gtk.Image.new();
   noop, __gycmap_msh_img.set_from_file(png_dir+"/msh-cmap.png");
 
-  __gycmap_mpl_img = gy.Gtk.Image.new();
+  __gycmap_mpl_img = Gtk.Image.new();
   noop, __gycmap_mpl_img.set_from_file(png_dir+"/mpl-cmap.png");
    
-  __gycmap_gpl_img = gy.Gtk.Image.new();
+  __gycmap_gpl_img = Gtk.Image.new();
   noop, __gycmap_gpl_img.set_from_file(png_dir+"/gpl-cmap.png");
 
-  __gycmap_gmt_img = gy.Gtk.Image.new();
+  __gycmap_gmt_img = Gtk.Image.new();
   noop, __gycmap_gmt_img.set_from_file(png_dir+"/gmt-cmap.png");
 
-  __gycmap_div_img = gy.Gtk.Image.new();
+  __gycmap_div_img = Gtk.Image.new();
   noop, __gycmap_div_img.set_from_file(png_dir+"/cbc-div-cmap.png");
 
-  __gycmap_seq_img = gy.Gtk.Image.new();
+  __gycmap_seq_img = Gtk.Image.new();
   noop, __gycmap_seq_img.set_from_file(png_dir+"/cbc-seq-cmap.png");
 
-  __gycmap_qual_img = gy.Gtk.Image.new();
+  __gycmap_qual_img = Gtk.Image.new();
   noop, __gycmap_qual_img.set_from_file(png_dir+"/cb-qual-cmap.png");
   
-  __gycmap_builder = gy.Gtk.Builder.new();
+  __gycmap_builder = Gtk.Builder.new();
   noop, __gycmap_builder.add_from_file(glade);
   __gycmap_win = __gycmap_builder.get_object("window1");
   __gycmap_ebox = __gycmap_builder.get_object("eventbox");
@@ -471,13 +480,12 @@ func __gywindow_event_handler(widget, event) {
   cur = __gywindow_find_by_xid(gy_xid(widget));
   if (is_void(cur)) return;
 
-  
-  ev = gy.Gdk.EventAny(event);
-  ev, type, type;
-
+  Gtk = gy.require("Gtk", "3.0");
   Gdk = gy.Gdk;
-  Gtk = gy.Gtk;
   EventType=Gdk.EventType;
+
+  ev = Gdk.EventAny(event);
+  ev, type, type;
   
   if (type == EventType.map) {
     window, cur.yid, parent=gy_xid(widget), ypos=-24 ;
@@ -490,7 +498,7 @@ func __gywindow_event_handler(widget, event) {
   
   if (type == EventType.enter_notify) {
     __gywindow_device = Gdk.Device(Gtk.get_current_event_device());
-    noop, gy.Gtk.Widget(widget)(window, win);
+    noop, Gtk.Widget(widget)(window, win);
     noop, __gywindow_device.grab(win, Gdk.GrabOwnership.none, 1,
                                  Gdk.EventMask.all_events_mask,
                                  ,
@@ -671,7 +679,7 @@ func gy_gtk_window_connect(yid, win, da, xylabel)
 
 func __gywindow_init(yid) {
   extern __gywindow;
-  Gtk=gy.Gtk;
+  Gtk = gy.require("Gtk", "3.0");
   noop, Gtk.init_check(0,);
   gy_setlocale;
   win = Gtk.Window.new(Gtk.WindowType.toplevel);
@@ -754,10 +762,11 @@ func gywindow(yid)
 
 func __gyerror_init(void) {
   extern __gyerror_win, __gyerror_msgarea, __gyerror_initialized;
-  noop, gy.Gtk.init(0, );
+  Gtk = gy.require("Gtk", "3.0");
+  noop, Gtk.init(0, );
   gy_setlocale;
-  __gyerror_win = gy.Gtk.Window.new(gy.Gtk.WindowType.toplevel);
-  __gyerror_msgarea=gy.Gtk.Label.new("");
+  __gyerror_win = Gtk.Window.new(Gtk.WindowType.toplevel);
+  __gyerror_msgarea=Gtk.Label.new("");
   noop, __gyerror_win.add(__gyerror_msgarea);
   __gyerror_initialized=1;
 }

@@ -53,6 +53,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o);
 
 typedef struct _gy_Repository {
   GIRepository * repo;
+  char * method;
 } gy_Repository;
 gy_Repository* yget_gy_Repository(int);
 gy_Repository* ypush_gy_Repository();
@@ -142,13 +143,13 @@ gy_Typelib* ypush_gy_Typelib() {
 
 //void gy_Repository_free(void *obj);
 void gy_Repository_print(void *obj);
-//void gy_Repository_eval(void *obj, int argc);
+void gy_Repository_eval(void *obj, int argc);
 void gy_Repository_extract(void *, char *);
 static y_userobj_t gy_Repository_obj =
   {"gy_Repository",
    NULL, //&gy_Repository_free,
    &gy_Repository_print,
-   NULL, //&gy_Repository_eval,
+   &gy_Repository_eval,
    &gy_Repository_extract,
    NULL  //&uo_ops
   };
@@ -170,6 +171,13 @@ gy_Repository_extract(void *obj, char * name)
   gy_Repository * r = (gy_Repository *) obj;
   GError * err;
 
+  if (!strcmp(name, "require")) {
+    gy_Repository* out = ypush_gy_Repository();
+    out->repo = r->repo;
+    out->method=name;
+    return;
+  }
+
   /// push output
   gy_Typelib * tl = ypush_gy_Typelib();
 
@@ -184,12 +192,48 @@ gy_Repository_extract(void *obj, char * name)
 
 }
 
+void
+gy_Repository_eval(void *obj, int argc)
+{
+  gy_Repository* r = (gy_Repository*) obj;
+  if (!r->method) y_error("Object is not callable");
+  if (!strcmp(r->method, "require")) {
+    GError * err=NULL;
+
+    /// process input
+    ystring_t namespace = ygets_q(argc-1);
+    ystring_t version = NULL;
+    if (argc>=2) version=ygets_q(argc-2);
+    GIRepositoryLoadFlags flags=0;
+    if (argc>=3) flags=ygets_l(argc-3);
+
+    /// push output
+    gy_Typelib * tl = ypush_gy_Typelib();
+
+    tl -> namespace = p_strcpy(namespace);
+    tl -> repo      = r->repo;
+    tl -> typelib   = g_irepository_require (r->repo,
+					     namespace,
+					     version,
+					     flags,
+					     &err);
+    if (!tl->typelib) y_error(err->message);
+   
+    return;
+  }
+
+  y_error("Unknown repository method");
+}
+
+
 gy_Repository* yget_gy_Repository(int iarg) {
   return (gy_Repository*) yget_obj(iarg, &gy_Repository_obj);
 }
 
 gy_Repository* ypush_gy_Repository() {
-  return (gy_Repository*) ypush_obj(&gy_Repository_obj, sizeof(gy_Repository));
+  gy_Repository* out = ypush_obj(&gy_Repository_obj, sizeof(gy_Repository));
+  out->method=0;
+  return out;
 }
 
 
@@ -944,27 +988,6 @@ Y_gy_init(int argc)
   g_type_init();
 #endif
   ypush_gy_Repository()->repo = g_irepository_get_default();
-}
-
-void
-Y_gy_require(int argc)
-{
-  GError * err;
-
-  /// process input
-  ystring_t namespace = ygets_q(argc-1);
-
-  /// push output
-  gy_Typelib * tl = ypush_gy_Typelib();
-
-  tl -> namespace = p_strcpy(namespace);
-  tl -> repo      = NULL,
-  tl -> typelib   = g_irepository_require (NULL,
-					   namespace,
-					   NULL,
-					   0,
-					   &err);
-  if (!tl->typelib) y_error(err->message);
 }
 
 void
