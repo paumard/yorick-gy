@@ -458,7 +458,7 @@ func __gywindow_on_error (void) {
 
 func __gywindow_event_handler(widget, event) {
   extern __gywindow, __gywindow_xs0, __gywindow_ys0, __gywindow_device;
-  local curwin;
+  local curwin, win;
   
   after_error=__gywindow_on_error;
 
@@ -484,7 +484,7 @@ func __gywindow_event_handler(widget, event) {
   
   if (type == EventType.enter_notify) {
     __gywindow_device = Gdk.Device(Gtk.get_current_event_device());
-    win = gy_gdk_window(widget);
+    noop, gy.Gtk.Widget(widget)(window, win);
     noop, __gywindow_device.grab(win, Gdk.GrabOwnership.none, 1,
                                  Gdk.EventMask.all_events_mask,
                                  ,
@@ -718,22 +718,6 @@ func gywindow(yid)
   noop, gy.Gtk.main();
 }
 
-/// hack: should be done from gi
-extern gy_gdk_window;
-/* DOCUMENT gdkwin = gy_gdk_window(gtkwidget)
-   
-     Get low-level Gdk "window" associated with a given Gtk widget.
-
-     As of now, this is a compiled routnie as the interpreted
-     interface is not sufficiently developed to get it directly.
-
-     Once the interpreted inteface allows doing that, this function
-     may or may not remain as an interpreted wrapper, depending on how
-     complex it is.
-     
-   SEE ALSO: gy, gy_xid
- */
-
 func gy_xid(wdg)
 /* DOCUMENT id=gy_xid(wdg)
    
@@ -753,10 +737,10 @@ func gy_xid(wdg)
  */
 
 {
-  return gy.GdkX11.X11Window(gy_gdk_window(wdg)).get_xid();
+  local gdkwin;
+  noop, gy.Gtk.Widget(wdg)(window, gdkwin);
+  return gy.GdkX11.X11Window(gdkwin).get_xid();
 }
-
-
 
 extern gy_debug;
 /* DOCUMENT mode = gy_debug();

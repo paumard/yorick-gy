@@ -23,9 +23,9 @@ OBJS=gy.o
 PKG_EXENAME=yorick
 
 # PKG_DEPLIBS=-Lsomedir -lsomelib   for dependencies of this package
-PKG_DEPLIBS=`pkg-config --libs gobject-introspection-1.0 gdk-x11-3.0`
+PKG_DEPLIBS=`pkg-config --libs gobject-introspection-1.0`
 # set compiler (or rarely loader) flags specific to this package
-PKG_CFLAGS=-Wall `pkg-config --cflags gobject-introspection-1.0 gdk-x11-3.0`
+PKG_CFLAGS=-Wall `pkg-config --cflags gobject-introspection-1.0`
 PKG_LDFLAGS=
 
 # list of additional package names you want in PKG_EXENAME

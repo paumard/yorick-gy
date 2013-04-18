@@ -18,7 +18,6 @@
  */
 
 #include <girepository.h>
-#include <gdk/gdkx.h>
 #include <glib-object.h>
 
 #include "yapi.h"
@@ -121,7 +120,8 @@ gy_Typelib_extract(void *obj, char * name)
     GY_DEBUG("Extracted object is constant\n");
     GIArgument rarg;
     GITypeInfo * retinfo = g_constant_info_get_type(o->info);
-    gint retval = g_constant_info_get_value(o->info, &rarg);
+    //gint retval = // useless so far: size of the constant
+    g_constant_info_get_value(o->info, &rarg);
     yarg_drop(1);
     gy_Argument_pushany(&rarg, retinfo, o);
     g_base_info_unref(retinfo);
@@ -688,19 +688,120 @@ gy_Object_eval(void *obj, int argc)
     return;
   }
 
-  if (GI_IS_OBJECT_INFO(o->info) || GI_IS_INTERFACE_INFO(o->info)) {
+  gboolean
+    isobject = GI_IS_OBJECT_INFO(o->info),
+    isitrf   = GI_IS_INTERFACE_INFO(o->info);
+
+  if (isobject || isitrf) {
     gy_Object* out = ypush_gy_Object(0);
     if(!o->object) {
       if (yarg_gy_Object(argc))
 	out -> object = yget_gy_Object(argc--) -> object;
-      else
-	out -> object = g_malloc0(g_struct_info_get_size (o->info));
+      /* else if (GI_IS_OBJECT_INFO(o->info)) { */
+      /* 	/\* find new() method *\/ */
+      /* 	GY_DEBUG("Looking for symbol \"new\" in %s\n", */
+      /* 		 g_base_info_get_name(o->info)); */
+      /* 	GIFunctionInfo * newinfo = */
+      /* 	  g_object_info_find_method (o->info, "new"); */
+      /* 	if (!newinfo) */
+      /* 	  y_errorq("\"new\" method not found for object type \"%s\"", */
+      /* 		   g_base_info_get_name(o->info)); */
+      /*  } */
+      else y_error("Object is not callable");
     } else
       out -> object = o->object;
     out->info=o->info;
     g_base_info_ref(o->info);
     g_object_ref(out->object);
     out->repo=o->repo;
+
+    /* try setting / getting properties */
+    int iarg = argc; // last is newly pushed reference
+    long index;
+    char * name;
+    gint i, n;
+    GIPropertyInfo * cur=NULL;
+    GITypeInfo * ti;
+    gboolean getting=0;
+    GParamFlags pf;
+
+    if (argc==1 && yarg_nil(iarg)) return;
+
+    int lim=0;
+    while (iarg > lim) { // 0 is output
+      index=yarg_key(iarg);
+      GY_DEBUG("index: %ld\n", index);
+      if (index<0) {
+	getting=1;
+	index=yget_ref(iarg);
+	if (index<0) name = ygets_q(iarg);
+	else name=yfind_name(index);
+      } else {
+	getting=0;
+	name=yfind_name(index);
+      }
+      GY_DEBUG("property: %s\n",name);
+      if (isobject) n = g_object_info_get_n_properties(o->info);
+      else  n = g_interface_info_get_n_properties(o->info);
+      for (i=0; i<n; ++i) {
+	GY_DEBUG("i=%d/%d\n", i, n);
+	cur = isobject?
+	  g_object_info_get_property (o->info, i):
+	  g_interface_info_get_property (o->info, i);
+	GY_DEBUG("comparing %s with %s\n", name, g_base_info_get_name(cur));
+	if (!strcmp(name, g_base_info_get_name(cur))) {
+	  GY_DEBUG("found it\n");
+	  ti = g_property_info_get_type(cur);
+	  pf = g_property_info_get_flags (cur);
+	  GITypeTag tag = g_type_info_get_tag(ti);
+	  if (getting) { //y_error("Getting");
+	    if (!(pf & G_PARAM_READABLE)) y_error("property is not readable");
+	    GY_DEBUG("getting\n");
+	    long idx = yget_ref(iarg-1);
+
+	    GY_DEBUG("Getting property... ");
+	    GIBaseInfo * outinfo=NULL;
+	    if (tag != GI_TYPE_TAG_INTERFACE)
+	      y_error ("fix me: only properties of type object supported yet");
+
+	    outinfo = g_type_info_get_interface (ti);
+	    if (!GI_IS_OBJECT_INFO(outinfo)) {
+	      g_base_info_unref(outinfo);
+	      y_error ("fix me: only properties of type object supported yet");
+	    }
+
+	    GValue val=G_VALUE_INIT;
+	    g_value_init(&val, G_TYPE_OBJECT);
+	    g_object_get_property(o->object, name, &val);
+
+	    GObject * prop=g_value_get_object(&val);
+	    if (!prop) y_error("get property failed");
+
+	    GY_DEBUG("pushing result... ");
+	    ypush_check(1);
+	    gy_Object * out = ypush_gy_Object();
+	    yput_global(idx, 0);
+	    yarg_swap(0, 1); // keep o on top
+	    GY_DEBUG("done.\n");
+
+	    out->info=outinfo;
+	    out->object=prop;
+	    out->repo=o->repo;
+	    
+	    ++lim;
+	    //	    yarg_drop(0);
+	  } else {
+	    if (!(pf & G_PARAM_WRITABLE)) y_error("property is not writable");
+	    else y_error("fix me: setting properties not implemented");
+	  }
+	  break;
+	}
+      }
+      if (i==n) y_error("property not found!");
+      --iarg;
+    }
+    
+
     return;
   }
 
@@ -1259,26 +1360,6 @@ Y_gy_signal_connect(int argc) {
 		    G_CALLBACK(callbacks[nargs]),
 		    sd);
   ypush_nil();
-}
-
-//// hack, should be done from gi
-
-void
-Y_gy_gdk_window(int argc) {
-  gy_Object * o = yget_gy_Object(0);
-  GObject * ptr = o->object;
-  if (!G_IS_OBJECT(ptr)) y_error ("Not an object");
-  GValue val = G_VALUE_INIT;
-  g_value_init(&val, G_TYPE_OBJECT);
-  g_object_get_property(ptr, "window", &val);
-  GdkWindow * win = g_value_get_object(&val);
-  if (!win) y_error("Cannot get Gdk window");
-  gy_Object * out = ypush_gy_Object();
-  out -> object = win;
-  out -> repo = o -> repo;
-  out -> info = g_irepository_find_by_name(o->repo,
-					   "Gdk",
-					   "Window");
 }
 
 void
