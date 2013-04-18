@@ -1366,7 +1366,7 @@ void
 Y_gy_debug(int argc)
 {
   ypush_long(_gy_debug);
-  if (argc) _gy_debug = ygets_l(argc);
+  if (argc && !yarg_nil(argc)) _gy_debug = ygets_l(argc);
 }
 
 void
@@ -1393,6 +1393,12 @@ Y_gy_setlocale(int argc)
 
   setlocale(LC_NUMERIC, "C");
 
+}
+
+void
+Y_gy_id(int argc)
+{
+  ypush_long((long) yget_gy_Object(argc-1)->object);
 }
 
 /*

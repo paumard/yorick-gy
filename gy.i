@@ -66,7 +66,9 @@ local gy;
    NOTE CONCERNING GTK:
     As of now, Gtk GUIs are always blocking, meaning you can't use the
     Yorick prompt whil a GUI is running. To accomodate for this
-    limitation, see gyterm.
+    limitation, see gyterm. On the other hand, that means that
+    callbacks are called almost synchronously, so applications are
+    easier to code.
 
     Please use gy_setlocale() in any public code, else Gtk will set
     LC_NUMERIC the user locale which will break Yorick in countries
@@ -83,13 +85,7 @@ local gy;
       "\"Hello World!\"";
     }
     gy_signal_connect, button, "clicked", hello;
-    func winhide(widget, event, data) {
-      noop, win.hide();
-      noop, Gtk.main_quit();
-    }
-    gy_signal_connect(win, "delete-event", winhide);
-    noop, win.show_all();
-    noop, Gtk.main();
+    gy_gtk_main, win;
     
    SEE ALSO: gyterm, gycmap, gywindow
  */
@@ -171,7 +167,6 @@ func __gyterm_init(void) {
   gy_setlocale;
   __gyterm_win = Gtk.Window.new(Gtk.WindowType.toplevel);
   noop, __gyterm_win.set_title("Yorick command line");
-  gy_gtk_window_suspend, __gyterm_win;
   __gyterm_entry = Gtk.Entry.new();
   gy_gtk_entry_include, __gyterm_entry;
   noop, __gyterm_win.add(__gyterm_entry);
@@ -239,7 +234,7 @@ func gy_gtk_entry_include(widget) {
     entry=gy.Gtk.Entry.new();
     gy_gtk_entry_include, entry;
 
-   SEE ALSO: gy, gyterm, gy_gtk_window_suspend
+   SEE ALSO: gy, gyterm, gy_gtk_window_suspend, gy_gtk_main
  */
   gy_signal_connect, widget, "key-press-event", __gyterm_key_pressed;
   noop, widget.set_placeholder_text("Yorick command");
@@ -250,20 +245,35 @@ func gy_gtk_window_suspend(win)
 /* DOCUMENT gy_gtk_window_suspend, window
    
     Connect a standard handler to the delete event of WINDOW.
+
+    Windows using gy_gtk_window_suspend should do so through
+    gy_gtk_main.
     
    EXAMPLE
-    win=gy.Gtk.Window.new();
-    gy_gtk_window_suspend, win;
+    noop, gy.Gtk.init(0,);
+    gy_setlocale;
+    win=gy.Gtk.Window.new(gy.Gtk.WindowType.toplevel);
+    gy_gtk_main, win;
 
    SEE ALSO: gy, gyterm, gy_gtk_entry_include
  */
 {
   gy_signal_connect, win, "delete-event", __gyterm_suspend;
+  gy_signal_connect, win, "destroy", __gyterm_destroy;
+}
+
+func __gyterm_destroy(widget) {
+  write, "destroy called on "+ pr1(widget)+"\n";
 }
 
 func __gyterm_suspend(widget, event) {
+  extern __gygtk_windows;
+  idx = where (__gygtk_windows(1,)==gy_id(widget));
+  if (!numberof(idx)) error("window is not managed");
+  __gygtk_windows(2,idx) = 0;
   noop, widget.hide();
-  noop, gy.Gtk.main_quit();
+  if (noneof(__gygtk_windows(2,))) noop, gy.Gtk.main_quit();
+  gy_return, 1;
 }
 
 func gyterm(cmd)
@@ -283,9 +293,7 @@ func gyterm(cmd)
 {
   extern __gyterm_initialized, __gyterm_win;
   if (!__gyterm_initialized) __gyterm_init;
-  noop, __gyterm_win.show_all();
-  if (cmd) include, [cmd], 1; 
-  else noop, gy.Gtk.main();
+  gy_gtk_main, __gyterm_win;
 }
 
 /// gycmap: a GUI for cmap
@@ -352,7 +360,6 @@ func __gycmap_init(void) {
   gy_signal_connect, combo, "changed", __gycmap_combo_changed;
   
   gy_signal_connect, __gycmap_ebox, "button-press-event", __gycmap_callback;
-  gy_gtk_window_suspend, __gycmap_win;
   noop, __gycmap_win.set_title("Yorick color table chooser");
 
   gy_gtk_entry_include, __gycmap_builder.get_object("entry");
@@ -445,8 +452,7 @@ func gycmap(void)
 {
   extern __gycmap_initialized, __gycmap_builder, __gycmap_win, __gycmap_ebox;
   if (!__gycmap_initialized) __gycmap_init;
-  noop, __gycmap_win.show_all();
-  noop, gy.Gtk.main();
+  gy_gtk_main, __gycmap_win;
 }
 
 //// gywindow: a yorick window wrapper
@@ -597,6 +603,34 @@ func __gywindow_event_handler(widget, event) {
   //write, format="in __gywindow_realized. event: %d\n", type;
 }
 
+__gygtk_windows=[];
+
+func gy_gtk_main(win)
+/* DOCUMENT gy_gtk_main, toplevel_window
+   
+     Show window and ensure the Gtk main loop is running, while
+     keeping track of the number of windows open.
+       
+     Windows open this way should use gy_gtk_window_suspend to close the
+     window.
+
+   SEE ALSO: gy_gtk_window_suspend
+*/ 
+     
+{
+  extern __gygtk_windows;
+  id = gy_id(win);
+  if (is_void(__gygtk_windows) || noneof(__gygtk_windows(1,)==id)) {
+    grow, __gygtk_windows, [[id, 0]];
+    gy_gtk_window_suspend, win;
+  }
+  idx=where(__gygtk_windows(1,)==id)(1);
+  if (__gygtk_windows(2,idx)) return;
+  __gygtk_windows(2,idx)=1;
+  noop, win.show_all();
+  if (sum(__gygtk_windows(2,))==1) noop, gy.Gtk.main();
+}
+
 func gy_gtk_idleonce(void)
 /* DOCUMENT gygtk_idleonce
 
@@ -642,7 +676,6 @@ func __gywindow_init(yid) {
   gy_setlocale;
   win = Gtk.Window.new(Gtk.WindowType.toplevel);
   noop, win.set_title("Yorick "+pr1(yid));
-  gy_gtk_window_suspend, win;
   box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
   noop, win.add(box);
 
@@ -714,8 +747,7 @@ func gywindow(yid)
       winkill, yid;
       __gywindow_init, yid;
     }
-  noop, __gywindow_find_by_yid(yid).win.show_all();
-  noop, gy.Gtk.main();
+  gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
 
 func gy_xid(wdg)
@@ -778,3 +810,12 @@ extern gy_return;
 
    SEE ALSO: gy, gy_signal_connect
  */
+
+ extern gy_id;
+ /* DOCUMENT id = gy_id(object)
+    
+      Get unique id of gy object. Two variables may hold the same
+      underlying object: the id is unique.
+
+    SEE ALSO: gy
+  */
