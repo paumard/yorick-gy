@@ -83,6 +83,8 @@
               <object class="GtkViewport" id="viewport1">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="halign">center</property>
+                <property name="valign">center</property>
                 <child>
                   <object class="GtkEventBox" id="eventbox">
                     <property name="visible">True</property>
@@ -102,14 +104,32 @@
           </packing>
         </child>
         <child>
-          <object class="GtkEntry" id="entry">
+          <object class="GtkExpander" id="expander1">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
-            <property name="invisible_char">●</property>
+            <property name="resize_toplevel">True</property>
+            <child>
+              <object class="GtkEntry" id="entry">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="invisible_char">●</property>
+              </object>
+            </child>
+            <child type="label">
+              <object class="GtkLabel" id="label1">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Yorick command</property>
+                <attributes>
+                  <attribute name="style" value="italic"/>
+                  <attribute name="scale" value="0.5"/>
+                </attributes>
+              </object>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>
-            <property name="fill">True</property>
+            <property name="fill">False</property>
             <property name="position">2</property>
           </packing>
         </child>
