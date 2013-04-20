@@ -1066,7 +1066,7 @@ void gy_callback0(void* arg1, gy_signal_data* sd) {
 	  g_irepository_find_by_gtype(o1 -> repo,
 				      G_OBJECT_TYPE(o1 -> object));
 
-    const char * fmt = "noop, %s (%s)";
+    const char * fmt = "__gy_callback_retval = %s (%s)";
     char * buf=p_malloc(sizeof(char)*
 			(strlen(fmt)+strlen(cmd)+strlen(var1)));
     sprintf(buf, fmt, cmd, var1);
@@ -1133,7 +1133,7 @@ void gy_callback1(void* arg1, void* arg2, gy_signal_data* sd) {
     o2 -> repo = repo;
 
 
-    const char * fmt = "noop, %s (%s, %s)";
+    const char * fmt = "__gy_callback_retval = %s (%s, %s)";
     char * buf=p_malloc(sizeof(char)*
 			(strlen(fmt)+strlen(cmd)+strlen(var1)+strlen(var2)));
     sprintf(buf, fmt, cmd, var1, var2);
@@ -1196,7 +1196,7 @@ void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) {
     o3 -> repo = repo;
 
 
-    const char * fmt = "noop, %s (%s, %s, %s)";
+    const char * fmt = "__gy_callback_retval = %s (%s, %s, %s)";
     char * buf=p_malloc(sizeof(char)*
 			(strlen(fmt)+strlen(cmd)
 			 +strlen(var1)+strlen(var2)+strlen(var3)));
