@@ -143,8 +143,7 @@ extern gy_signal_connect;
     Connect signal to signal handler.
     
     The handler must accept all the parameters described in the C
-    documentation for the signal. Callbacks which need to return a
-    value must use gy_return to do so.
+    documentation for the signal.
 
    ARGUMENTS:
     builder: if first argument is a Gtk Builder object, the signals
@@ -210,14 +209,12 @@ func __gyterm_key_pressed(widget, event) {
     }
     __gyterm_idx=(__gyterm_idx==1)?__gyterm_max:__gyterm_idx-1;
     noop, widget.set_text(__gyterm_history(__gyterm_idx));
-    gy_return, 1;
-    return;
+    return 1;
   }
   if (keyval==Gdk.KEY_Down) {
     __gyterm_idx=(__gyterm_idx==__gyterm_max)?1:__gyterm_idx+1;
     noop, widget.set_text(__gyterm_history(__gyterm_idx));
-    gy_return, 1;
-    return;
+    return 1;
   }
 
   if (keyval==Gdk.KEY_Return) {
@@ -230,12 +227,10 @@ func __gyterm_key_pressed(widget, event) {
     __gyterm_idx=__gyterm_cur;
     write, format="> %s\n", cmd;
     include, strchar("if (catch(-1)) {gyerror, catch_message; return;} "+cmd), 1;
-    gy_return, 1;
-    return;
+    return 1;
   }
 
-  gy_return, 0;
-  return;
+  return 0;
 }
 
 func gy_gtk_entry_include(widget) {
@@ -286,7 +281,7 @@ func __gyterm_suspend(widget, event) {
   __gygtk_windows(2,idx) = 0;
   noop, widget.hide();
   if (noneof(__gygtk_windows(2,))) noop, gy.Gtk.main_quit();
-  gy_return, 1;
+  return 1;
 }
 
 func gyterm(cmd)
@@ -834,21 +829,6 @@ extern gy_setlocale;
 
 //extern gy_thread;
 
-extern gy_return;
-/* DOCUMENT gy_return, retval
-
-     Return value from callback.
-
-     Some callbacks must return a value. Use gy_callback to do it.
-
-   EXAMPLE:
-     func mycallback(widget, event) {
-       do_stuff;
-       gy_return, 1;
-     }
-
-   SEE ALSO: gy, gy_signal_connect
- */
 
  extern gy_id;
  /* DOCUMENT id = gy_id(object)

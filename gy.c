@@ -1037,7 +1037,6 @@ Y_gy_list_object(int argc) {
 }
 
 ////  generic callbacks
-static gboolean gy_callback_retval;
 
 void gy_callback0(void* arg1, gy_signal_data* sd) {
   GY_DEBUG("in gy_callback0()\n");
@@ -1084,10 +1083,19 @@ void gy_callback0(void* arg1, gy_signal_data* sd) {
 
 }
 
+inline gboolean gy_callback_retbool() {
+  long idx=yget_global("__gy_callback_retval", 0);
+  ypush_check(1);
+  ypush_global(idx);
+  long retval=0;
+  if (yarg_number(0)) retval=ygets_l(0);
+  yarg_drop(1);
+  return retval;
+}
+
 gboolean gy_callback0_bool(void* arg1, gy_signal_data* sd) {
-  gy_callback_retval=0;
   gy_callback0(arg1, sd) ;
-  return gy_callback_retval;
+  return gy_callback_retbool();
 }
 
 void gy_callback1(void* arg1, void* arg2, gy_signal_data* sd) {
@@ -1143,15 +1151,8 @@ void gy_callback1(void* arg1, void* arg2, gy_signal_data* sd) {
 }
 
 gboolean gy_callback1_bool(void* arg1, void* arg2, gy_signal_data* sd) {
-  gy_callback_retval=0;
   gy_callback1(arg1, arg2, sd) ;
-  return gy_callback_retval;
-}
-
-void
-Y_gy_return(int argc)
-{
-  gy_callback_retval=ygets_l(0);
+  return gy_callback_retbool();
 }
 
 void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) {
@@ -1215,9 +1216,8 @@ void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) {
 
 gboolean gy_callback2_bool(void* arg1, void* arg2, void*arg3,
 			   gy_signal_data* sd) {
-  gy_callback_retval=0;
   gy_callback2(arg1, arg2, arg3, sd) ;
-  return gy_callback_retval;
+  return gy_callback_retbool();
 }
 
 ///// end callbacks
