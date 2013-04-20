@@ -35,6 +35,8 @@ local gy;
 
      - gywindow is a wrapper for Yorick windows (work in progress).
 
+     - gyhelloworld is a trivial example.
+
     gyterm and gywindow can be easily embedded in custom applications
     (indeed, gyterm *is* embedded in both gycmap and gywindow).
 
