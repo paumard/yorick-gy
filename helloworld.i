@@ -25,13 +25,13 @@
 
 #include "gy.i"
 
-Gtk=gy.Gtk;
+Gtk=gy.require("Gtk", "3.0");
 Gtk.init_check(0,);
 gy_setlocale;
 win = Gtk.Window.new(Gtk.WindowType.toplevel);
 
 button = Gtk.Button.new_with_label("Hello World!");
-win.add(button);
+noop, win.add(button);
 
 func hello(wdg) {
   "Hello World!";
@@ -39,15 +39,7 @@ func hello(wdg) {
 
 gy_signal_connect, button, "clicked", hello;
 
-func winhide(wdg, evt) {
-  noop, wdg.hide();
-  noop, gy.Gtk.main_quit();
-}
-
-gy_signal_connect(win, "delete-event", winhide);
-
-noop, win.show_all();
-noop, Gtk.main();
+gy_gtk_main, win;
 
 /*
 // From a file: grab some glade file and fix the three variables below!
@@ -70,7 +62,5 @@ func on_ywin_event(widget, event) {
    window, parent=gy_xid(widget);
 }
 gy_signal_connect, ywin, "event", "on_ywin_event";
-gy_signal_connect, win, "delete-event", "__gyterm_suspend";
-win.show_all()
-Gtk.main()
+gy_gtk_main, win;
 */

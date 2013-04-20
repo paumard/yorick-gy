@@ -34,7 +34,7 @@
 typedef struct _gy_signal_data {
   GIBaseInfo * info;
   GIRepository * repo;
-  char * cmd;
+  const char * cmd;
   void * data;
 } gy_signal_data;
 

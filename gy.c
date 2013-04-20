@@ -251,6 +251,10 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
   switch(type) {
+  case GI_TYPE_TAG_VOID:
+    if (yarg_nil(iarg)) arg->v_pointer=NULL;
+    else y_error("unimplemented void... type (?!)");
+    break;
   case GI_TYPE_TAG_BOOLEAN:
     arg->v_boolean=yarg_true(iarg);
     break;
@@ -297,6 +301,9 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
+    case GI_INFO_TYPE_CALLBACK:
+      arg->v_pointer=yget_gy_Object(iarg)->object;
+      break;
     case GI_INFO_TYPE_STRUCT:
       {
 	GType g_type=
@@ -1216,23 +1223,54 @@ gboolean gy_callback2_bool(void* arg1, void* arg2, void*arg3,
 ///// end callbacks
 
 void
+__gy_signal_connect(GObject * object,
+		    GIBaseInfo * info,
+		    GIRepository * repo,
+		    const gchar* sig,
+		    const gchar * cmd);
+
+void
 Y_gy_signal_connect(int argc) {
   gy_Object * o = yget_gy_Object(argc-1);
   if (!o->info || !GI_IS_OBJECT_INFO(o->info) || ! o -> object )
     y_error("First argument but hold GObject derivative instance");
+
+  if (!strcmp(G_OBJECT_TYPE_NAME(o->object), "GtkBuilder")) {
+    long idx1 = yget_global("__gy_gtk_builder", 0);
+    void* usage=yget_use(argc-1);
+    ypush_use(usage);
+    yput_global(idx1, 0);
+    long dims[Y_DIMSIZE]={1,1};
+    *ypush_q(dims)=p_strcpy("noop, __gy_gtk_builder"
+			    ".connect_signals_full("
+			    "gy_gtk_builder_connector(),)");
+    yexec_include(0, 1);
+    ypush_nil();
+    return;
+  }
+
   ystring_t sig = ygets_q(argc-2);
   ystring_t cmd = NULL;
-    GISignalInfo * cbinfo=NULL;
-  gint i, n;
-  GIBaseInfo * cur, *next;
 
   if (yarg_string(argc-3)) cmd = p_strcpy(ygets_q(argc-3));
   else if (yarg_func(argc-3)) {
     cmd = p_strcpy(yfind_name(yget_ref(argc-3)));
   } else y_error("callback must be string or function");
 
+  __gy_signal_connect(o->object, o->info, o->repo, sig, cmd);
 
-  cur = o -> info;
+  ypush_nil();
+}
+
+void
+__gy_signal_connect(GObject * object, GIBaseInfo * info, GIRepository * repo,
+		    const gchar * sig, const gchar * cmd)
+{
+  GIBaseInfo * cur, *next;
+  GISignalInfo * cbinfo=NULL;
+  gint i, n;
+
+  cur = info;
   g_base_info_ref(cur);
   while (!cbinfo && cur) {
     GY_DEBUG("%s\n", g_base_info_get_name(cur) );
@@ -1261,7 +1299,7 @@ Y_gy_signal_connect(int argc) {
 
   sd -> info = cbinfo;
   sd -> cmd = cmd;
-  sd -> repo = o -> repo;
+  sd -> repo = repo;
 
   GCallback * voidcallbacks[]={(GCallback*)(&gy_callback0),
 			       (GCallback*)(&gy_callback1),
@@ -1294,11 +1332,10 @@ Y_gy_signal_connect(int argc) {
 
   GY_DEBUG("Callback address: %p\n", callbacks[nargs]);
 
-  g_signal_connect (o -> object,
+  g_signal_connect (object,
 		    sig,
 		    G_CALLBACK(callbacks[nargs]),
 		    sd);
-  ypush_nil();
 }
 
 static gboolean _gy_debug = 0;
@@ -1357,3 +1394,28 @@ Y_gy_thread(int argc) {
   sleep(100);
 }
 */
+
+void
+gyGtkBuilderConnectFunc(void *builder,
+			GObject *object,
+			const gchar *signal_name,
+			const gchar *handler_name,
+			GObject *connect_object,
+			GConnectFlags flags,
+			gpointer user_data)
+
+{
+  // builder is a GtkBuilder but we don't want to use gtk headers
+  GIObjectInfo * info = g_irepository_find_by_gtype(NULL, // should use repo
+						    G_OBJECT_TYPE(object));
+  GY_DEBUG("autoconnecting %s to %s\n", signal_name, handler_name);
+  // ! we may leak memory
+  __gy_signal_connect(object, info, NULL, signal_name, p_strcpy(handler_name));
+  g_base_info_unref(info);
+}
+
+void
+Y_gy_gtk_builder_connector(int argc)
+{
+  ypush_gy_Object()->object = (void*)&gyGtkBuilderConnectFunc;
+}

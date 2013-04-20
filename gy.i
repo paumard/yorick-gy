@@ -138,7 +138,8 @@ extern gy_list_object;
 
 extern gy_signal_connect;
 /* DOCUMENT gy_connect_signal, object, signal, handler
-
+         or gy_connect_signal, builder
+   
     Connect signal to signal handler.
     
     The handler must accept all the parameters described in the C
@@ -146,6 +147,11 @@ extern gy_signal_connect;
     value must use gy_return to do so.
 
    ARGUMENTS:
+    builder: if first argument is a Gtk Builder object, the signals
+             information it contains will be used to automatically
+             connect GObject signals to Yorick interpreted functions.
+             Whether or not the Yorick functions actually exists is
+             not checked.
     object:  a gy object supporting signals, e.g. an instance of
              gy.Gtk.Entry.
     signal:  the signal name, e.g. "activated".
@@ -852,3 +858,5 @@ extern gy_return;
 
     SEE ALSO: gy
   */
+
+extern gy_gtk_builder_connector;
