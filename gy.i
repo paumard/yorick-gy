@@ -491,13 +491,27 @@ func __gywindow_event_handler(widget, event) {
   ev, type, type;
   
   if (type == EventType.map) {
-    window, cur.yid, parent=gy_xid(widget), ypos=-24 ;
+    window, cur.yid, parent=gy_xid(widget), ypos=-24, dpi=cur.dpi,
+      width=long(8.5*cur.dpi), height=long(11*cur.dpi);
     save, cur, realized=1;
+
+    sw = widget.get_parent().get_parent();
+
+    hadjustment = sw.get_hadjustment();
+    noop, hadjustment.set_value(1.25*cur.dpi);
+  
+    vadjustment = sw.get_vadjustment();
+    noop, vadjustment.set_value(1.25*cur.dpi);
+
+    save, cur, hadjustment, vadjustment;
+
     if (Gtk.main_level()) gy_gtk_idleonce;
     return;
   }
 
   if (!cur.realized) return;
+
+  pix2ndc=72.27/cur.dpi*0.0013;
   
   if (type == EventType.enter_notify) {
     __gywindow_device = Gdk.Device(Gtk.get_current_event_device());
@@ -531,10 +545,8 @@ func __gywindow_event_handler(widget, event) {
     if (shft && !meta && button==1) button=2;
     if (meta && !shft && button==1) button=3;
         
-    // ll in NDC: 0.1165 0.3545
-    // ur in NDC: 0.6790 0.9170
-    xndc=0.1165+(0.5625/450.)*(x-2);
-    yndc=0.9170-(0.5625/450.)*(y-1);
+    xndc=pix2ndc*(x-2);
+    yndc=11.*72.27*0.0013-pix2ndc*(y-1);
 
     vp = viewport();
     lm = limits();
@@ -603,7 +615,10 @@ func __gywindow_event_handler(widget, event) {
   if (!is_void(curwin) && curwin>=0) window, curwin;
   
   if (type == EventType.motion_notify) {
-    if (x<0 || y<0 || x>455 || y>455) {
+    if (x<cur.hadjustment.get_value() ||
+        y<cur.vadjustment.get_value() ||
+        x>cur.hadjustment.get_value()+cur.hadjustment.get_page_size() ||
+        y>cur.vadjustment.get_value()+cur.vadjustment.get_page_size()) {
       noop, __gywindow_device.ungrab(Gdk.CURRENT_TIME);
       return;
     }
@@ -660,7 +675,7 @@ func gy_gtk_idleonce(void)
 
 if (is_void(__gywindow)) __gywindow=save();
 
-func gy_gtk_window_connect(yid, win, da, xylabel)
+func gy_gtk_window_connect(yid, win, da, xylabel, dpi=)
 /* DOCUMENT gy_gtk_window_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
@@ -676,12 +691,24 @@ func gy_gtk_window_connect(yid, win, da, xylabel)
  */
 {
   extern __gywindow;
+  if (is_void(dpi)) dpi=75;
   gy_signal_connect, da, "event", __gywindow_event_handler;
-  save, __gywindow, "", save(yid, xid=[], win, da, xylabel, realized=0);
+  gy_signal_connect, da, "configure-event", __gywindow_redraw;
+  gy_signal_connect, da, "draw", __gywindow_redraw;
+  save, __gywindow, "", save(yid, xid=[], win, da, xylabel, realized=0, dpi=dpi);
 }
 
-func __gywindow_init(yid) {
-  extern __gywindow;
+
+func __gywindow_redraw(widg, event, userdata) {
+  gy_gtk_idleonce;
+  return 1;
+}
+
+func __gywindow_init(yid, dpi=, width=, height=) {
+  extern __gywindow, adj;
+  if (is_void(dpi)) dpi=75;
+  if (is_void(width)) width=long(6*dpi);
+  if (is_void(height)) height=long(6*dpi);
   Gtk = gy.require("Gtk", "3.0");
   noop, Gtk.init_check(0,);
   gy_setlocale;
@@ -695,17 +722,25 @@ func __gywindow_init(yid) {
 
   xylabel=Gtk.Label.new("");
   noop, box2.pack_start(xylabel, 0, 0, 0);
-    
+
+
+  sw = Gtk.ScrolledWindow.new(,);
+  noop, sw.set_size_request(width,height); 
+  noop, box.pack_start(sw, 1, 1, 0);
+
+  tmp = Gtk.Viewport.new(,);
+  noop, sw.add(tmp);
+  
   da = Gtk.DrawingArea.new();
   noop, da.add_events(gy.Gdk.EventMask.all_events_mask);
-  noop, da.set_size_request(454, 453);
-  noop, box.pack_start(da, 1, 1, 0);
+  noop, da.set_size_request(long(8.5*dpi),long(11*dpi));
+  noop, tmp.add(da);
 
   entry=Gtk.Entry.new();
   gy_gtk_entry_include, entry;
-  noop, box.pack_start(entry, 1,1,0);
+  noop, box.pack_start(entry, 0,1,0);
   
-  gy_gtk_window_connect, yid, win, da, xylabel;
+  gy_gtk_window_connect, yid, win, da, xylabel, dpi=dpi;
 }
 
 func __gywindow_find_by_xid(xid)
@@ -734,7 +769,7 @@ func __gywindow_find_by_yid(yid)
   }
 }
 
-func gywindow(yid)
+func gywindow(yid, dpi=, width=, height=)
 /* DOCUMENT gywindow, yid
 
     When the Gtk main loop is running, the Yorick main loop is
@@ -756,7 +791,7 @@ func gywindow(yid)
   if (is_void(__gywindow_find_by_yid(yid)))
     {
       winkill, yid;
-      __gywindow_init, yid;
+      __gywindow_init, yid, dpi=dpi, width=width, height=height;
     }
   gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
