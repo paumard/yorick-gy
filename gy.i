@@ -681,7 +681,8 @@ func gy_gtk_window_connect(yid, win, da, xylabel, dpi=)
 /* DOCUMENT gy_gtk_window_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
-    gywindow for a trivial example).
+    gywindow for a trivial example). For a lower level function, see
+    gy_gtk_ywindow.
 
    ARGUMENTS
     yid: Yorick window ID to embed
@@ -689,7 +690,7 @@ func gy_gtk_window_connect(yid, win, da, xylabel, dpi=)
     da:  the gy.Gtk.DrawingArea in which the yorick window will be embedded.
     xylabel: gy.Gtk.Entry widget in which to report mouse motion.
 
-   SEE ALSO: gy, gywindow
+   SEE ALSO: gy, gywindow, gy_gtk_ywindow
  */
 {
   extern __gywindow;
@@ -706,18 +707,20 @@ func __gywindow_redraw(widg, event, userdata) {
   return 1;
 }
 
-func __gywindow_init(yid, dpi=, width=, height=) {
-  extern __gywindow, adj;
-  if (is_void(dpi)) dpi=75;
-  if (is_void(width)) width=long(6*dpi);
-  if (is_void(height)) height=long(6*dpi);
+func gy_gtk_ywindow(yid, dpi=, width=, height=)
+/* DOCUMENT widget = gy_gtk_ywindow(yid)
+
+     Initialize a Gtk widget embedding Yorick window number YID. The
+     widget is scrollable and provides mouse position reading and
+     zoom/pan capabilities. The widget is connected using
+     gy_gtk_window_connect.
+
+   KEYWORDS: dpi, width, height.
+   SEE ALSO: gy, gywindow, gyterm, gycmap, gy_gtk_window_connect
+ */
+{
   Gtk = gy.require("Gtk", "3.0");
-  noop, Gtk.init_check(0,);
-  gy_setlocale;
-  win = Gtk.Window.new(Gtk.WindowType.toplevel);
-  noop, win.set_title("Yorick "+pr1(yid));
-  box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
-  noop, win.add(box);
+  box = Gtk.Box.new(Gtk.Orientation.vertical, 0);
 
   box2=Gtk.Box.new(Gtk.Orientation.horizontal, 0);
   noop, box.pack_start(box2, 0,0,0);
@@ -738,11 +741,29 @@ func __gywindow_init(yid, dpi=, width=, height=) {
   noop, da.set_size_request(long(8.5*dpi),long(11*dpi));
   noop, tmp.add(da);
 
+  gy_gtk_window_connect, yid, win, da, xylabel, dpi=dpi;
+
+  return box;
+}
+
+func __gywindow_init(yid, dpi=, width=, height=) {
+  extern __gywindow, adj;
+  if (is_void(dpi)) dpi=75;
+  if (is_void(width)) width=long(6*dpi);
+  if (is_void(height)) height=long(6*dpi);
+  Gtk = gy.require("Gtk", "3.0");
+  noop, Gtk.init_check(0,);
+  gy_setlocale;
+  win = Gtk.Window.new(Gtk.WindowType.toplevel);
+  noop, win.set_title("Yorick "+pr1(yid));
+  box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
+  noop, win.add(box);
+
+  noop, box.add(gy_gtk_ywindow(yid, dpi=dpi, width=width, height=height));
+
   entry=Gtk.Entry.new();
   gy_gtk_entry_include, entry;
   noop, box.pack_start(entry, 0,1,0);
-  
-  gy_gtk_window_connect, yid, win, da, xylabel, dpi=dpi;
 }
 
 func __gywindow_find_by_xid(xid)
@@ -781,9 +802,9 @@ func gywindow(yid, dpi=, width=, height=)
     and its content erased.
 
     If you are interested in embedding a Yorick window in your own
-    application, have a look at gy_window_connect.
+    application, have a look at gy_gtk_ywindow.
 
-   SEE ALSO: gyterm, gy_window_connect
+   SEE ALSO: gyterm, gy_gtk_ywindow
 */
 {
   if (is_void(yid)) {
