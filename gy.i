@@ -492,7 +492,7 @@ func __gywindow_event_handler(widget, event) {
   
   if (type == EventType.map) {
     window, cur.yid, parent=gy_xid(widget), ypos=-24, dpi=cur.dpi,
-      width=long(8.5*cur.dpi), height=long(11*cur.dpi);
+      width=long(8.5*cur.dpi), height=long(11*cur.dpi), style=cur.style;
     save, cur, realized=1;
 
     sw = widget.get_parent().get_parent();
@@ -677,7 +677,7 @@ func gy_gtk_idleonce(void)
 
 if (is_void(__gywindow)) __gywindow=save();
 
-func gy_gtk_window_connect(yid, win, da, xylabel, dpi=)
+func gy_gtk_window_connect(yid, win, da, xylabel, dpi=, style=)
 /* DOCUMENT gy_gtk_window_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
@@ -698,7 +698,8 @@ func gy_gtk_window_connect(yid, win, da, xylabel, dpi=)
   gy_signal_connect, da, "event", __gywindow_event_handler;
   gy_signal_connect, da, "configure-event", __gywindow_redraw;
   gy_signal_connect, da, "draw", __gywindow_redraw;
-  save, __gywindow, "", save(yid, xid=[], win, da, xylabel, realized=0, dpi=dpi);
+  save, __gywindow, "", save(yid, xid=[], win, da, xylabel,
+                             realized=0, dpi=dpi, style=style);
 }
 
 
@@ -707,7 +708,7 @@ func __gywindow_redraw(widg, event, userdata) {
   return 1;
 }
 
-func gy_gtk_ywindow(yid, dpi=, width=, height=)
+func gy_gtk_ywindow(yid, dpi=, width=, height=, style=)
 /* DOCUMENT widget = gy_gtk_ywindow(yid)
 
      Initialize a Gtk widget embedding Yorick window number YID. The
@@ -715,7 +716,7 @@ func gy_gtk_ywindow(yid, dpi=, width=, height=)
      zoom/pan capabilities. The widget is connected using
      gy_gtk_window_connect.
 
-   KEYWORDS: dpi, width, height.
+   KEYWORDS: dpi, width, height, style.
    SEE ALSO: gy, gywindow, gyterm, gycmap, gy_gtk_window_connect
  */
 {
@@ -741,12 +742,12 @@ func gy_gtk_ywindow(yid, dpi=, width=, height=)
   noop, da.set_size_request(long(8.5*dpi),long(11*dpi));
   noop, tmp.add(da);
 
-  gy_gtk_window_connect, yid, win, da, xylabel, dpi=dpi;
+  gy_gtk_window_connect, yid, win, da, xylabel, dpi=dpi, style=style;
 
   return box;
 }
 
-func __gywindow_init(yid, dpi=, width=, height=) {
+func __gywindow_init(yid, dpi=, width=, height=, style=) {
   extern __gywindow, adj;
   if (is_void(dpi)) dpi=75;
   if (is_void(width)) width=long(6*dpi);
@@ -759,7 +760,8 @@ func __gywindow_init(yid, dpi=, width=, height=) {
   box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
   noop, win.add(box);
 
-  noop, box.add(gy_gtk_ywindow(yid, dpi=dpi, width=width, height=height));
+  noop, box.add(gy_gtk_ywindow(yid, dpi=dpi, width=width, height=height,
+                               style=style));
 
   entry=Gtk.Entry.new();
   gy_gtk_entry_include, entry;
@@ -792,7 +794,7 @@ func __gywindow_find_by_yid(yid)
   }
 }
 
-func gywindow(yid, dpi=, width=, height=)
+func gywindow(yid, dpi=, width=, height=, style=)
 /* DOCUMENT gywindow, yid
 
     When the Gtk main loop is running, the Yorick main loop is
@@ -814,7 +816,7 @@ func gywindow(yid, dpi=, width=, height=)
   if (is_void(__gywindow_find_by_yid(yid)))
     {
       winkill, yid;
-      __gywindow_init, yid, dpi=dpi, width=width, height=height;
+      __gywindow_init, yid, dpi=dpi, width=width, height=height, style=style;
     }
   gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
