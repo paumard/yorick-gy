@@ -497,11 +497,13 @@ func __gywindow_event_handler(widget, event) {
 
     sw = widget.get_parent().get_parent();
 
+    xcenter = long(4.25*cur.dpi);
+    
     hadjustment = sw.get_hadjustment();
-    noop, hadjustment.set_value(1.25*cur.dpi);
+    noop, hadjustment.set_value(xcenter-hadjustment.get_page_size()/2);
   
     vadjustment = sw.get_vadjustment();
-    noop, vadjustment.set_value(1.25*cur.dpi);
+    noop, vadjustment.set_value(xcenter-vadjustment.get_page_size()/2);
 
     save, cur, hadjustment, vadjustment;
 
