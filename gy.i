@@ -269,7 +269,7 @@ func gy_gtk_window_suspend(win)
  */
 {
   gy_signal_connect, win, "delete-event", __gyterm_suspend;
-  gy_signal_connect, win, "destroy", __gyterm_destroy;
+  //  gy_signal_connect, win, "destroy", __gyterm_destroy;
 }
 
 func __gyterm_destroy(widget) {
@@ -474,6 +474,64 @@ func __gywindow_on_error (void) {
   noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
 }
 
+func gywinkill(yid)
+/* DOCUMENT gywinkill, yid
+     Forget all about gywindow YID.
+   SEE ALSO gywindow
+ */
+{
+  extern __gywindow;
+  tmp = save();
+  n = __gywindow(*);
+  for (i=1; i<=n; ++i) {
+    if (__gywindow( (nothing=i) ).yid==yid) {
+      winkill, yid;
+      gy_gtk_destroy, __gywindow( (nothing=i) ).win;
+    } else save, tmp, "", __gywindow( (nothing=i) );
+  }
+  __gywindow = tmp;
+}
+
+func gy_gtk_destroy(win)
+/* DOCUMENT gy_gtk_destroy, win
+
+     Hide window WIN and remove it from the lsit of managed windows.
+
+   SEE ALSO: gy_gtk_main
+ */
+{
+  extern __gygtk_windows;
+  __gyterm_suspend, win; 
+  idx = where (__gygtk_windows(1,)!=gy_id(win));
+  if (numberof(idx)) __gygtk_windows = __gygtk_windows(,idx);
+  else __gygtk_windows = [];
+  // noop, win.destroy();
+}
+
+func gywindow_reinit(yid, dpi=, style=)
+/* DOCUMENT gywndow_reinit, yid
+   
+     RE-initialize Yorick window YID attached to a gy widget, for
+     instance to change DPI or STYLE.
+
+   KEYWORDS: dpi, style.
+   SEE ALSO: gy, gywindow, gy_gtk_ywindow
+ */
+{
+  cur = __gywindow_find_by_yid(yid);
+  if (!is_void(dpi)) {
+    if (dpi==0) dpi=75;
+    save, cur, dpi;
+  }
+  if (!is_void(style)) {
+    if (style==0) style="work.gs";
+    save, cur, style;
+  }
+  winkill, cur.yid;
+  window, cur.yid, parent=cur.xid, ypos=-24, dpi=cur.dpi,
+    width=long(8.5*cur.dpi), height=long(11*cur.dpi), style=cur.style;
+}
+
 func __gywindow_event_handler(widget, event) {
   extern __gywindow, __gywindow_xs0, __gywindow_ys0, __gywindow_device;
   local curwin, win;
@@ -490,7 +548,7 @@ func __gywindow_event_handler(widget, event) {
   ev = Gdk.EventAny(event);
   ev, type, type;
   
-  if (type == EventType.map) {
+  if (type == EventType.map && !cur.realized) {
     window, cur.yid, parent=gy_xid(widget), ypos=-24, dpi=cur.dpi,
       width=long(8.5*cur.dpi), height=long(11*cur.dpi), style=cur.style;
     save, cur, realized=1;
