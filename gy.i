@@ -508,8 +508,8 @@ func gy_gtk_destroy(win)
   // noop, win.destroy();
 }
 
-func gywindow_reinit(yid, dpi=, style=)
-/* DOCUMENT gywndow_reinit, yid
+func gy_gtk_ywindow_reinit(yid, dpi=, style=)
+/* DOCUMENT gy_gtk_ywindow_reinit, yid
    
      RE-initialize Yorick window YID attached to a gy widget, for
      instance to change DPI or STYLE.
@@ -735,8 +735,8 @@ func gy_gtk_idleonce(void)
 
 if (is_void(__gywindow)) __gywindow=save();
 
-func gy_gtk_window_connect(&yid, win, da, xylabel, dpi=, style=)
-/* DOCUMENT gy_gtk_window_connect, yid, win, da, xylabel
+func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=)
+/* DOCUMENT gy_gtk_ywindow_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
     gywindow for a trivial example). For a lower level function, see
@@ -754,7 +754,7 @@ func gy_gtk_window_connect(&yid, win, da, xylabel, dpi=, style=)
  */
 {
   extern __gywindow;
-  if (is_void(yid)) yid=gywindow_find_free_id();
+  if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
   
   if (is_void(dpi)) dpi=75;
@@ -777,16 +777,16 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
      Initialize a Gtk widget embedding Yorick window number YID. The
      widget is scrollable and provides mouse position reading and
      zoom/pan capabilities. The widget is connected using
-     gy_gtk_window_connect.
+     gy_gtk_ywindow_connect.
 
      If YID is nil, a new ID is taken and YID is set to this value.
 
    KEYWORDS: dpi, width, height, style.
-   SEE ALSO: gy, gywindow, gyterm, gycmap, gy_gtk_window_connect
+   SEE ALSO: gy, gywindow, gyterm, gycmap, gy_gtk_ywindow_connect
  */
 {
   extern __gywindow;
-  if (is_void(yid)) yid=gywindow_find_free_id();
+  if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
   
   Gtk = gy.require("Gtk", "3.0");
@@ -811,14 +811,14 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
   noop, da.set_size_request(long(8.5*dpi),long(11*dpi));
   noop, tmp.add(da);
 
-  gy_gtk_window_connect, yid, win, da, xylabel, dpi=dpi, style=style;
+  gy_gtk_ywindow_connect, yid, win, da, xylabel, dpi=dpi, style=style;
 
   return box;
 }
 
 func __gywindow_init(&yid, dpi=, width=, height=, style=) {
   extern __gywindow, adj;
-  if (is_void(yid)) yid=gywindow_find_free_id();
+  if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
   if (is_void(dpi)) dpi=75;
   if (is_void(width)) width=long(6*dpi);
@@ -867,8 +867,8 @@ func __gywindow_find_by_yid(yid)
   }
 }
 
-func gywindow_find_free_id(void)
-/* DOCUMENT yid = gywindow_find_free_id();
+func gy_gtk_ywindow_free_id(void)
+/* DOCUMENT yid = gy_gtk_ywindow_free_id();
    
      Find Yorick window ID not yet used by a gywindow. It is not
      guaranteed that this id is not use by a non-GTK Yorick window.
@@ -898,15 +898,15 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=)
     application, have a look at gy_gtk_ywindow.
 
    KEYWORDS:
-    freeid: if true, a new ID is foound using gywindow_find_free_id.
+    freeid: if true, a new ID is foound using gy_gtk_ywindow_free_id.
     dpi, width, height, style: see window
 
-   SEE ALSO: gyterm, gy_gtk_ywindow, gywindow_find_free_id, window,
+   SEE ALSO: gyterm, gy_gtk_ywindow, gy_gtk_ywindow_free_id, window,
              gywinkill
 */
 {
   if (freeid) {
-    yid = gywindow_find_free_id();
+    yid = gy_gtk_ywindow_free_id();
     if (is_void(yid)) error, "unable to find free id";
   }
   if (is_void(yid)) {
