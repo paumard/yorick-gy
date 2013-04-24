@@ -457,6 +457,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 		 g_enum_info_get_storage_type (itrf));
       }
       break;
+    case GI_INFO_TYPE_STRUCT:
     case GI_INFO_TYPE_OBJECT:
       if (!arg -> v_pointer) ypush_nil();
       outObject = ypush_gy_Object();
@@ -464,22 +465,26 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
       outObject -> object = arg -> v_pointer;
       if (!outObject->object)
 	y_warn("object is NULL!");
-      g_object_ref(outObject -> object);
+      if (g_base_info_get_type (itrf) == GI_INFO_TYPE_OBJECT) {
+	g_object_ref(outObject -> object);
 
-      if (G_IS_OBJECT(outObject -> object)) {
-	outObject->info =
-	  g_irepository_find_by_gtype(o -> repo,
-				      G_OBJECT_TYPE(outObject->object));
-	if (!outObject->info) {
-	  GY_DEBUG("unable to find object type !");
-	  //outObject -> info = info;
-	  //g_base_info_ref(info);
+	if (G_IS_OBJECT(outObject -> object)) {
+	  outObject->info =
+	    g_irepository_find_by_gtype(o -> repo,
+					G_OBJECT_TYPE(outObject->object));
+	  if (!outObject->info) {
+	    GY_DEBUG("unable to find object type !");
+	    //outObject -> info = info;
+	    //g_base_info_ref(info);
+	  }
+	} else {
+	  outObject -> info = info;
+	  g_base_info_ref(info);
 	}
-      } else {
-	outObject -> info = info;
-	g_base_info_ref(info);
+	break;
       }
-
+      outObject -> info = info;
+      g_base_info_ref(info);
       break;
     default:
       y_errorn("Unimplemented output GIArgument interface type %ld",

@@ -235,6 +235,29 @@ func __gyterm_key_pressed(widget, event) {
   return 0;
 }
 
+func gy_gtk_yentry(noexpander)
+/* DOCUMENT widget = gy_gtk_yentry (noexpander)
+   
+    Create a Gtk widget to type Yorick commands, similar to
+    gyterm. Unless NOEXPANDER is specified and evaluates to true, the
+    Gtk entry is put in an expander.
+
+   SEE ALSO: gy, gyentry, gy_gtk_entry_include, gy_gtk_ywindow
+ */
+{
+  Gtk=gy.require("Gtk", "3.0");
+  entry = Gtk.Entry.new();
+  gy_gtk_entry_include, entry;
+  if (noexpander) return entry;
+  exp = Gtk.Expander.new("Yorick command");
+  exp.add(entry);
+  /*
+    Pango=gy.Pango;
+    al = Pango.AttrList(Pango.AttrList.new());
+  */
+  return exp;
+}
+
 func gy_gtk_entry_include(widget) {
 /* DOCUMENT gy_gtk_entry_include, entry_widget
    
@@ -836,9 +859,7 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=) {
                                dpi=dpi, width=width, height=height,
                                style=style));
 
-  entry=Gtk.Entry.new();
-  gy_gtk_entry_include, entry;
-  noop, box.pack_start(entry, 0,1,0);
+  noop, box.pack_start(gy_gtk_yentry(), 0,1,0);
 }
 
 func __gywindow_find_by_xid(xid)
