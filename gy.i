@@ -735,12 +735,14 @@ func gy_gtk_idleonce(void)
 
 if (is_void(__gywindow)) __gywindow=save();
 
-func gy_gtk_window_connect(yid, win, da, xylabel, dpi=, style=)
+func gy_gtk_window_connect(&yid, win, da, xylabel, dpi=, style=)
 /* DOCUMENT gy_gtk_window_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
     gywindow for a trivial example). For a lower level function, see
     gy_gtk_ywindow.
+
+     If YID is nil, a new ID is taken and YID is set to this value.
 
    ARGUMENTS
     yid: Yorick window ID to embed
@@ -752,6 +754,9 @@ func gy_gtk_window_connect(yid, win, da, xylabel, dpi=, style=)
  */
 {
   extern __gywindow;
+  if (is_void(yid)) yid=gywindow_find_free_id();
+  if (is_void(yid)) error, "unable to find free id";
+  
   if (is_void(dpi)) dpi=75;
   gy_signal_connect, da, "event", __gywindow_event_handler;
   gy_signal_connect, da, "configure-event", __gywindow_redraw;
@@ -766,7 +771,7 @@ func __gywindow_redraw(widg, event, userdata) {
   return 1;
 }
 
-func gy_gtk_ywindow(yid, dpi=, width=, height=, style=)
+func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
 /* DOCUMENT widget = gy_gtk_ywindow(yid)
 
      Initialize a Gtk widget embedding Yorick window number YID. The
@@ -774,10 +779,16 @@ func gy_gtk_ywindow(yid, dpi=, width=, height=, style=)
      zoom/pan capabilities. The widget is connected using
      gy_gtk_window_connect.
 
+     If YID is nil, a new ID is taken and YID is set to this value.
+
    KEYWORDS: dpi, width, height, style.
    SEE ALSO: gy, gywindow, gyterm, gycmap, gy_gtk_window_connect
  */
 {
+  extern __gywindow;
+  if (is_void(yid)) yid=gywindow_find_free_id();
+  if (is_void(yid)) error, "unable to find free id";
+  
   Gtk = gy.require("Gtk", "3.0");
   box = Gtk.Box.new(Gtk.Orientation.vertical, 0);
 
@@ -805,8 +816,10 @@ func gy_gtk_ywindow(yid, dpi=, width=, height=, style=)
   return box;
 }
 
-func __gywindow_init(yid, dpi=, width=, height=, style=) {
+func __gywindow_init(&yid, dpi=, width=, height=, style=) {
   extern __gywindow, adj;
+  if (is_void(yid)) yid=gywindow_find_free_id();
+  if (is_void(yid)) error, "unable to find free id";
   if (is_void(dpi)) dpi=75;
   if (is_void(width)) width=long(6*dpi);
   if (is_void(height)) height=long(6*dpi);
@@ -818,7 +831,9 @@ func __gywindow_init(yid, dpi=, width=, height=, style=) {
   box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
   noop, win.add(box);
 
-  noop, box.add(gy_gtk_ywindow(yid, dpi=dpi, width=width, height=height,
+  
+  noop, box.add(gy_gtk_ywindow(yid,
+                               dpi=dpi, width=width, height=height,
                                style=style));
 
   entry=Gtk.Entry.new();
@@ -852,7 +867,25 @@ func __gywindow_find_by_yid(yid)
   }
 }
 
-func gywindow(yid, dpi=, width=, height=, style=)
+func gywindow_find_free_id(void)
+/* DOCUMENT yid = gywindow_find_free_id();
+   
+     Find Yorick window ID not yet used by a gywindow. It is not
+     guaranteed that this id is not use by a non-GTK Yorick window.
+
+   SEE ALSO: gywindow
+*/
+{
+  extern __gywindow;
+  n = __gywindow(*);
+  free = array(1, 64);
+  for (i=1; i<=n; ++i) free(__gywindow( (nothing=i) ).yid+1)=0;
+  ids = where(free);
+  if (!numberof(ids)) return;
+  return ids(0)-1;
+}
+
+func gywindow(&yid, freeid=, dpi=, width=, height=, style=)
 /* DOCUMENT gywindow, yid
 
     When the Gtk main loop is running, the Yorick main loop is
@@ -864,9 +897,18 @@ func gywindow(yid, dpi=, width=, height=, style=)
     If you are interested in embedding a Yorick window in your own
     application, have a look at gy_gtk_ywindow.
 
-   SEE ALSO: gyterm, gy_gtk_ywindow
+   KEYWORDS:
+    freeid: if true, a new ID is foound using gywindow_find_free_id.
+    dpi, width, height, style: see window
+
+   SEE ALSO: gyterm, gy_gtk_ywindow, gywindow_find_free_id, window,
+             gywinkill
 */
 {
+  if (freeid) {
+    yid = gywindow_find_free_id();
+    if (is_void(yid)) error, "unable to find free id";
+  }
   if (is_void(yid)) {
     yid = current_window();
     if (yid<0) yid=0;
@@ -874,7 +916,8 @@ func gywindow(yid, dpi=, width=, height=, style=)
   if (is_void(__gywindow_find_by_yid(yid)))
     {
       winkill, yid;
-      __gywindow_init, yid, dpi=dpi, width=width, height=height, style=style;
+      __gywindow_init, yid,
+        dpi=dpi, width=width, height=height, style=style;
     }
   gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
