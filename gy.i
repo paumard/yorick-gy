@@ -251,7 +251,7 @@ func gy_gtk_ycmd(noexpander)
   entry = Gtk.Entry.new();
   gy_gtk_ycmd_connect, entry;
   if (noexpander) return entry;
-  exp = Gtk.Expander.new("<span style=\"italic\" size=\"smaller\">Yorick command</span>");
+  exp = Gtk.Expander.new("<small><span style=\"italic\" size=\"smaller\">Yorick command</span></small>");
   exp.add(entry);
   exp.set_use_markup(1);
   exp.set_resize_toplevel(1);
@@ -397,8 +397,10 @@ func __gycmap_init(void) {
   gy_signal_connect, __gycmap_ebox, "button-press-event", __gycmap_callback;
   noop, __gycmap_win.set_title("Yorick color table chooser");
 
-  gy_gtk_ycmd_connect, __gycmap_builder.get_object("entry");
+  noop, __gycmap_builder.get_object("box1").add(gy_gtk_ycmd());
+
   __gycmap_initialized=1;
+
 }
 
 func __gycmap_callback(widget, event) {
