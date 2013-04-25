@@ -249,12 +249,10 @@ func gy_gtk_yentry(noexpander)
   entry = Gtk.Entry.new();
   gy_gtk_entry_include, entry;
   if (noexpander) return entry;
-  exp = Gtk.Expander.new("Yorick command");
+  exp = Gtk.Expander.new("<span style=\"italic\" size=\"smaller\">Yorick command</span>");
   exp.add(entry);
-  /*
-    Pango=gy.Pango;
-    al = Pango.AttrList(Pango.AttrList.new());
-  */
+  exp.set_use_markup(1);
+  exp.set_resize_toplevel(1);
   return exp;
 }
 
