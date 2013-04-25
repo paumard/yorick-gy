@@ -38,7 +38,8 @@ local gy;
      - gyhelloworld is a trivial example.
 
     gyterm and gywindow can be easily embedded in custom applications
-    (indeed, gyterm *is* embedded in both gycmap and gywindow).
+    (indeed, gyterm *is* embedded in both gycmap and gywindow). See
+    gy_gtk_ycmd and gy_gtk_ywindow.
 
    DETAILS
     Any library providing gobject-introspection can be accessed
@@ -175,16 +176,15 @@ extern gy_signal_connect;
 
 func __gyterm_init(void) {
   require,  "string.i";
-  extern __gyterm_initialized, __gyterm_win, __gyterm_entry;
+  extern __gyterm_initialized, __gyterm_win;
   Gtk=gy.require("Gtk");
   noop, Gtk.init_check(0,);
   gy_setlocale;
   __gyterm_win = Gtk.Window.new(Gtk.WindowType.toplevel);
   noop, __gyterm_win.set_title("Yorick command line");
-  __gyterm_entry = Gtk.Entry.new();
-  gy_gtk_entry_include, __gyterm_entry;
-  noop, __gyterm_win.add(__gyterm_entry);
-  noop, __gyterm_entry.set_width_chars(80);
+  entry = gy_gtk_ycmd(1);
+  noop, __gyterm_win.add(entry);
+  noop, entry.set_width_chars(80);
   __gyterm_initialized=1;
 }  
 
@@ -211,11 +211,13 @@ func __gyterm_key_pressed(widget, event) {
     }
     __gyterm_idx=(__gyterm_idx==1)?__gyterm_max:__gyterm_idx-1;
     noop, widget.set_text(__gyterm_history(__gyterm_idx));
+    noop, Gtk.Editable(widget).set_position(-1);
     return 1;
   }
   if (keyval==Gdk.KEY_Down) {
     __gyterm_idx=(__gyterm_idx==__gyterm_max)?1:__gyterm_idx+1;
     noop, widget.set_text(__gyterm_history(__gyterm_idx));
+    noop, Gtk.Editable(widget).set_position(-1);
     return 1;
   }
 
@@ -235,19 +237,19 @@ func __gyterm_key_pressed(widget, event) {
   return 0;
 }
 
-func gy_gtk_yentry(noexpander)
-/* DOCUMENT widget = gy_gtk_yentry (noexpander)
+func gy_gtk_ycmd(noexpander)
+/* DOCUMENT widget = gy_gtk_ycmd (noexpander)
    
     Create a Gtk widget to type Yorick commands, similar to
     gyterm. Unless NOEXPANDER is specified and evaluates to true, the
     Gtk entry is put in an expander.
 
-   SEE ALSO: gy, gyentry, gy_gtk_entry_include, gy_gtk_ywindow
+   SEE ALSO: gy, gyentry, gy_gtk_ycmd_connect, gy_gtk_ywindow
  */
 {
   Gtk=gy.require("Gtk", "3.0");
   entry = Gtk.Entry.new();
-  gy_gtk_entry_include, entry;
+  gy_gtk_ycmd_connect, entry;
   if (noexpander) return entry;
   exp = Gtk.Expander.new("<span style=\"italic\" size=\"smaller\">Yorick command</span>");
   exp.add(entry);
@@ -256,14 +258,14 @@ func gy_gtk_yentry(noexpander)
   return exp;
 }
 
-func gy_gtk_entry_include(widget) {
-/* DOCUMENT gy_gtk_entry_include, entry_widget
+func gy_gtk_ycmd_connect(widget) {
+/* DOCUMENT gy_gtk_ycmd_connect, entry_widget
    
     Makes entry_widget mimick gyterm behavior.
 
    EXAMPLE
     entry=gy.Gtk.Entry.new();
-    gy_gtk_entry_include, entry;
+    gy_gtk_ycmd_connect, entry;
 
    SEE ALSO: gy, gyterm, gy_gtk_window_suspend, gy_gtk_main
  */
@@ -286,7 +288,7 @@ func gy_gtk_window_suspend(win)
     win=gy.Gtk.Window.new(gy.Gtk.WindowType.toplevel);
     gy_gtk_main, win;
 
-   SEE ALSO: gy, gyterm, gy_gtk_entry_include
+   SEE ALSO: gy, gyterm, gy_gtk_ycmd_connect
  */
 {
   gy_signal_connect, win, "delete-event", __gyterm_suspend;
@@ -317,9 +319,9 @@ func gyterm(cmd)
      gy-based, blocking GUI, simpy launch it from gyterm.
 
      If you want to embed gyterm in another GUI, see
-     gy_gtk_entry_include.
+     gy_gtk_ycmd_connect.
 
-   SEE ALSO: gy, gy_gtk_entry_include, gycmap, gywindow
+   SEE ALSO: gy, gy_gtk_ycmd_connect, gycmap, gywindow
  */
 {
   extern __gyterm_initialized, __gyterm_win;
@@ -395,7 +397,7 @@ func __gycmap_init(void) {
   gy_signal_connect, __gycmap_ebox, "button-press-event", __gycmap_callback;
   noop, __gycmap_win.set_title("Yorick color table chooser");
 
-  gy_gtk_entry_include, __gycmap_builder.get_object("entry");
+  gy_gtk_ycmd_connect, __gycmap_builder.get_object("entry");
   __gycmap_initialized=1;
 }
 
@@ -857,7 +859,7 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=) {
                                dpi=dpi, width=width, height=height,
                                style=style));
 
-  noop, box.pack_start(gy_gtk_yentry(), 0,1,0);
+  noop, box.pack_start(gy_gtk_ycmd(), 0,1,0);
 }
 
 func __gywindow_find_by_xid(xid)
