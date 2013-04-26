@@ -947,25 +947,36 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=)
 
 //// error message
 
-func __gyerror_init(void) {
-  extern __gyerror_win, __gyerror_msgarea, __gyerror_initialized;
-  Gtk = gy.require("Gtk", "3.0");
-  noop, Gtk.init(0, );
-  gy_setlocale;
-  __gyerror_win = Gtk.Window.new(Gtk.WindowType.toplevel);
-  __gyerror_msgarea=Gtk.Label.new("");
-  noop, __gyerror_win.add(__gyerror_msgarea);
-  __gyerror_initialized=1;
-}
-
 func gyerror(msg)
 /* DOCUMENT gyerror, msg
      Display error message in a Gtk window.
  */
 {
-  if (!__gyerror_initialized) __gyerror_init;
-  noop, __gyerror_msgarea.set_text(msg);
-  gy_gtk_main,__gyerror_win;
+  aspect = 1.61803398875; // nombre d'or
+  Gtk = gy.require("Gtk", "3.0");
+  noop, Gtk.init(0, );
+  gy_setlocale;
+  win = Gtk.Dialog.new();
+  noop, win.set_title("Yorick error");
+  noop, win.set_size_request(long(200*aspect), 200);
+  hbox = Gtk.Box.new(Gtk.Orientation.horizontal, 0);
+  vbox = Gtk.Box.new(Gtk.Orientation.vertical, 0);
+  noop, hbox.add(Gtk.Label.new("   "));
+  noop, hbox.add(Gtk.Image.new_from_stock(Gtk.STOCK_DIALOG_ERROR,
+                                          Gtk.IconSize.dialog));
+  noop, hbox.add(Gtk.Label.new("   "));
+  noop, hbox.add(vbox);
+  noop, hbox.add(Gtk.Label.new("   "));
+  noop, vbox.add(Gtk.Label.new("Yorick error:"));
+  noop, vbox.add(Gtk.Label.new(msg));
+  noop, win.get_content_area().add(Gtk.Label.new(""));
+  noop, win.get_content_area().add(hbox);
+  noop, win.get_content_area().add(Gtk.Label.new(""));
+  noop, win.get_content_area().set_homogeneous(1);
+  noop, win.add_button(Gtk.STOCK_OK, Gtk.ResponseType.ok);
+  noop, win.show_all();
+  noop, win.run();
+  noop, win.destroy();
 }
 
 //// utilities
