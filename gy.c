@@ -1048,6 +1048,7 @@ void gy_callback0(void* arg1, gy_signal_data* sd) {
   const char * cmd = sd -> cmd;
   GISignalInfo * cbinfo = sd -> info;
   GIRepository * repo = sd -> repo;
+  void * data = sd -> data;
   //  void * udata = sd -> data;
   GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
   char*buf=NULL;
@@ -1055,11 +1056,13 @@ void gy_callback0(void* arg1, gy_signal_data* sd) {
 
   ypush_check(4);
 
-  long idx1=0;
+  long idx1=0, idxud=0;
 
   if (cbinfo) {
     const char * var1 = "__gy_callback_var1";
+    const char * varud = "__gy_callback_userdata";
     idx1 = yget_global(var1, 0);
+    idxud = yget_global(varud, 0);
 
     gy_Object * o1 = ypush_gy_Object();
     yput_global(idx1, 0);
@@ -1071,10 +1074,15 @@ void gy_callback0(void* arg1, gy_signal_data* sd) {
 	  g_irepository_find_by_gtype(o1 -> repo,
 				      G_OBJECT_TYPE(o1 -> object));
 
-    const char * fmt = "__gy_callback_retval = %s (%s)";
+    gy_Object * oud = ypush_gy_Object();
+    yput_global(idxud, 0);
+    oud -> object = data;
+    oud -> repo = repo;
+
+    const char * fmt = "__gy_callback_retval = %s (%s, %s)";
     char * buf=p_malloc(sizeof(char)*
-			(strlen(fmt)+strlen(cmd)+strlen(var1)));
-    sprintf(buf, fmt, cmd, var1);
+			(strlen(fmt)+strlen(cmd)+strlen(var1)+strlen(varud)));
+    sprintf(buf, fmt, cmd, var1, varud);
     cmd=buf;
     ndrops+=1;
   }
@@ -1232,7 +1240,8 @@ __gy_signal_connect(GObject * object,
 		    GIBaseInfo * info,
 		    GIRepository * repo,
 		    const gchar* sig,
-		    const gchar * cmd);
+		    const gchar * cmd,
+		    void * data);
 
 void
 Y_gy_signal_connect(int argc) {
@@ -1262,14 +1271,17 @@ Y_gy_signal_connect(int argc) {
     cmd = p_strcpy(yfind_name(yget_ref(argc-3)));
   } else y_error("callback must be string or function");
 
-  __gy_signal_connect(o->object, o->info, o->repo, sig, cmd);
+  void* data;
+  if (argc>=4) data = yget_gy_Object(argc-4)->object; 
+
+  __gy_signal_connect(o->object, o->info, o->repo, sig, cmd, data);
 
   ypush_nil();
 }
 
 void
 __gy_signal_connect(GObject * object, GIBaseInfo * info, GIRepository * repo,
-		    const gchar * sig, const gchar * cmd)
+		    const gchar * sig, const gchar * cmd, void * data)
 {
   GIBaseInfo * cur, *next;
   GISignalInfo * cbinfo=NULL;
@@ -1305,6 +1317,7 @@ __gy_signal_connect(GObject * object, GIBaseInfo * info, GIRepository * repo,
   sd -> info = cbinfo;
   sd -> cmd = cmd;
   sd -> repo = repo;
+  sd -> data = data;
 
   GCallback * voidcallbacks[]={(GCallback*)(&gy_callback0),
 			       (GCallback*)(&gy_callback1),
@@ -1415,7 +1428,8 @@ gyGtkBuilderConnectFunc(void *builder,
 						    G_OBJECT_TYPE(object));
   GY_DEBUG("autoconnecting %s to %s\n", signal_name, handler_name);
   // ! we may leak memory
-  __gy_signal_connect(object, info, NULL, signal_name, p_strcpy(handler_name));
+  __gy_signal_connect(object, info, NULL, signal_name, p_strcpy(handler_name),
+		      user_data);
   g_base_info_unref(info);
 }
 

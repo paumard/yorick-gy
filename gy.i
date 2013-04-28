@@ -841,6 +841,60 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
   return box;
 }
 
+
+func __gywindow_save(wdg, data)
+{
+  require, "pathfun.i";
+  extern result;
+  Gtk=gy.Gtk;
+  
+  win = Gtk.Dialog.new();
+  fc = Gtk.FileChooserWidget.new(Gtk.FileChooserAction.save);
+  fcfc = Gtk.FileChooser(fc);
+  noop, fcfc.set_do_overwrite_confirmation(1);
+  noop, fcfc.set_create_folders(1);
+  noop, win.get_content_area().add(fc);
+  noop, win.add_button(Gtk.STOCK_SAVE, Gtk.ResponseType.ok);
+  noop, win.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.cancel);
+  noop, win.show_all();
+  
+  result = win.run();
+  
+  fname=fcfc.get_filename();
+  noop, win.hide();
+  noop, win.destroy();
+  
+  if (result != Gtk.ResponseType.ok || fname == string(0) ) return 1;
+
+  yid = __gywindow_find_by_xid(gy_xid(data)).yid;
+  
+  bname=basename(fname);
+  ext=pathsplit(bname,delim=".");
+  if (numberof(ext)==1) {
+    gyerror, "Export failed: no extension in file name.";
+    return 1;
+  }
+  format=ext(0);
+  
+  if (anyof(format==["JPEG","jpeg","jpg","jfif"])) fformat="jpeg";
+  else if (anyof(format==["PNG","png"])) fformat="png";
+  else if (anyof(format==["EPS","eps"])) fformat="eps";
+  else if (anyof(format==["PDF","pdf"])) fformat="pdf";
+  else {
+    gyerror, "Could not recognize extension \"" + format +"\".";
+    return 1;
+  }
+  symb=symbol_def(fformat);
+  if (!is_func(symb)) {
+    gyerror, "This Yorick lacks the function \"" + fformat + "\".";
+    return 1;
+  }
+  if (catch(-1)) {gyerror, catch_message; return 1;}
+  symb, fname;
+
+  return 1;
+}
+
 func __gywindow_init(&yid, dpi=, width=, height=, style=) {
   extern __gywindow, adj;
   if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
@@ -856,12 +910,24 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=) {
   box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
   noop, win.add(box);
 
-  
   noop, box.add(gy_gtk_ywindow(yid,
                                dpi=dpi, width=width, height=height,
                                style=style));
 
-  noop, box.pack_start(gy_gtk_ycmd(), 0,1,0);
+  cur = __gywindow_find_by_yid(yid);
+
+  hbox = Gtk.Box.new(Gtk.Orientation.horizontal, 0);
+  exp = Gtk.Expander.new("<small><span style=\"italic\" size=\"smaller\">Tools</span></small>");
+  exp.add(hbox);
+  exp.set_use_markup(1);
+  exp.set_resize_toplevel(1);
+
+  noop, hbox.pack_start(gy_gtk_ycmd(1), 0,1,0);
+  but = Gtk.Button.new_from_stock(Gtk.STOCK_SAVE);
+  noop, hbox.pack_start(but, 0,1,0);
+  gy_signal_connect, but, "clicked", __gywindow_save, cur.da;
+  
+  noop, box.pack_start(exp, 0,1,0);
 }
 
 func __gywindow_find_by_xid(xid)
