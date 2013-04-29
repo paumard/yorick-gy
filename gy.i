@@ -555,6 +555,7 @@ func gy_gtk_ywindow_reinit(yid, dpi=, style=)
   winkill, cur.yid;
   window, cur.yid, parent=cur.xid, ypos=-24, dpi=cur.dpi,
     width=long(8.5*cur.dpi), height=long(11*cur.dpi), style=cur.style;
+  noop, cur.da.set_size_request(long(8.5*dpi),long(11*dpi));
 }
 
 func __gywindow_event_handler(widget, event) {
@@ -825,7 +826,7 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
 
 
   sw = Gtk.ScrolledWindow.new(,);
-  noop, sw.set_size_request(width,height); 
+  //  noop, sw.set_size_request(width,height); 
   noop, box.pack_start(sw, 1, 1, 0);
 
   tmp = Gtk.Viewport.new(,);
@@ -841,6 +842,11 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
   return box;
 }
 
+func __gywindow_cmap(wdg, data)
+{
+  gycmap;
+  return 1;
+}
 
 func __gywindow_save(wdg, data)
 {
@@ -890,8 +896,13 @@ func __gywindow_save(wdg, data)
     return 1;
   }
   if (catch(-1)) {gyerror, catch_message; return 1;}
-  symb, fname;
 
+
+  prev = current_window();
+  window, yid;
+  symb, fname;
+  window, prev;
+  
   return 1;
 }
 
@@ -906,28 +917,150 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=) {
   noop, Gtk.init_check(0,);
   gy_setlocale;
   win = Gtk.Window.new(Gtk.WindowType.toplevel);
+  noop, win.set_default_size(450, 488);
   noop, win.set_title("Yorick "+pr1(yid));
   box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
   noop, win.add(box);
 
-  noop, box.add(gy_gtk_ywindow(yid,
-                               dpi=dpi, width=width, height=height,
-                               style=style));
+  noop, box.pack_start(gy_gtk_ywindow(yid,
+                                      dpi=dpi, width=width, height=height,
+                                      style=style),
+                       1, 1, 0);
 
   cur = __gywindow_find_by_yid(yid);
 
-  hbox = Gtk.Box.new(Gtk.Orientation.horizontal, 0);
+  tb = Gtk.Toolbar.new();
+  tbox=Gtk.Box.new(Gtk.Orientation.vertical, 0);
+  
   exp = Gtk.Expander.new("<small><span style=\"italic\" size=\"smaller\">Tools</span></small>");
-  exp.add(hbox);
-  exp.set_use_markup(1);
-  exp.set_resize_toplevel(1);
+  noop, exp.add(tbox);
+  noop, exp.set_use_markup(1);
+  noop, exp.set_resize_toplevel(1);
+  noop, box.pack_start(exp, 0,0,0);
 
-  noop, hbox.pack_start(gy_gtk_ycmd(1), 0,1,0);
-  but = Gtk.Button.new_from_stock(Gtk.STOCK_SAVE);
-  noop, hbox.pack_start(but, 0,1,0);
+  noop, tbox.pack_start(gy_gtk_ycmd(1), 0, 0, 0);
+  noop, tbox.pack_start(tb, 0, 0, 0);
+
+  cb = Gtk.ComboBoxText.new();
+  noop, cb.insert(-1, "0.5625", "9:16");
+  noop, cb.insert(-1, "0.6180339887498947915", "2:(1+√5)");
+  noop, cb.insert(-1, "0.625", "10:16");
+  noop, cb.insert(-1, "0.75", "3:4");
+  noop, cb.insert(-1, "1", "1:1");
+  noop, cb.insert(-1, "1.33333333333333333", "4:3");
+  noop, cb.insert(-1, "1.6", "16:10");
+  noop, cb.insert(-1, "1.6180339887498949025", "(1+√5):2");
+  noop, cb.insert(-1, "1.77777777777777777", "16:9");
+  noop, cb.get_child().set_size_request(2, -1);
+  noop, cb.set_tooltip_text("Aspect ratio");
+  gy_signal_connect, cb, "changed", __gywindow_ratio, cur.da;
+  item = Gtk.ToolItem.new();
+  noop, item.add(cb);
+  noop, tb.insert(item, -1);
+  
+  cb = Gtk.ComboBoxText.new();
+  noop, cb.insert(-1, "50", "50 dpi");
+  noop, cb.insert(-1, "75", "75 dpi");
+  noop, cb.insert(-1, "100", "100 dpi");
+  noop, cb.insert(-1, "150", "150 dpi");
+  noop, cb.get_child().set_size_request(2, -1);
+  noop, cb.set_tooltip_text("Resolution (dots per inch)");
+  gy_signal_connect, cb, "changed", __gywindow_dpi, cur.da;
+  item = Gtk.ToolItem.new();
+  noop, item.add(cb);
+  noop, tb.insert(item, -1);
+  
+  cb = Gtk.ComboBoxText.new();
+  path = pathsplit(GISTPATH);
+  for (i=1; i<=numberof(path); ++i) {
+    dir=path(i);
+    files=lsdir(dir);
+    if (is_string(files)) {
+      ind=where(strglob( "*.gs", files));
+      if (!numberof(ind)) continue;
+      files=files(ind);
+      for (j=1; j<=numberof(files); ++j) {
+        noop, cb.insert(-1, files(j), strpart(files(j), :-3));
+      }
+    }
+  }
+  noop, cb.set_tooltip_text("Plot style");
+  gy_signal_connect, cb, "changed", __gywindow_style, cur.da;
+  item = Gtk.ToolItem.new();
+  noop, item.add(cb);
+  noop, tb.insert(item, -1);
+  
+  but = Gtk.ToolButton.new_from_stock(Gtk.STOCK_SAVE);
+  noop, but.set_tooltip_text("Export plot");
+  noop, tb.insert(but, -1);
   gy_signal_connect, but, "clicked", __gywindow_save, cur.da;
   
-  noop, box.pack_start(exp, 0,1,0);
+  but = Gtk.ToolButton.new_from_stock(Gtk.STOCK_SELECT_COLOR);
+  noop, but.set_tooltip_text("Choose color map");
+  noop, tb.insert(but, -1);
+  gy_signal_connect, but, "clicked", __gywindow_cmap, cur.da;
+}
+
+func __gywindow_ratio(widget, data)
+{
+
+  yid = __gywindow_find_by_xid(gy_xid(data)).yid;
+  
+  ratio = 0.;
+  sread, widget.get_active_id(), ratio;
+  inch2ndc=72.27*0.0013;
+
+  
+  prev = current_window();
+  window, yid;
+
+  get_style, land, sys, leg, cleg;
+
+  ovp = sys(plsys()).viewport;
+  ow = ovp(2)-ovp(1);
+  oh = ovp(4)-ovp(3);
+  ol = max(ow, oh);
+  xc = 0.5*(ovp(2)+ovp(1));
+  yc = 0.5*(ovp(4)+ovp(3));
+
+  if (ratio >= 1) {
+    w = ol; h = ol / ratio;
+  } else {
+    h = ol; w = ol*ratio;
+  }
+  xc;
+  yc;
+  sys(plsys()).viewport = [xc,xc,yc,yc] + [-w,w,-h,h] * 0.5;
+  set_style, land, sys, leg, cleg;
+
+  window, prev;
+}
+
+func __gywindow_dpi(widget, data)
+{
+
+  cur = __gywindow_find_by_xid(gy_xid(data));
+  
+  dpi = 0;
+  sread, widget.get_active_id(), dpi;
+  
+  prev = current_window();
+
+  gy_gtk_ywindow_reinit, cur.yid, dpi=dpi, style=cur.style;
+  
+  window, prev;
+}
+
+func __gywindow_style(widget, data)
+{
+
+  cur = __gywindow_find_by_xid(gy_xid(data));
+  
+  prev = current_window();
+
+  gy_gtk_ywindow_reinit, cur.yid, dpi=cur.dpi, style=widget.get_active_id();
+  
+  window, prev;
 }
 
 func __gywindow_find_by_xid(xid)
