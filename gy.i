@@ -591,6 +591,8 @@ func __gywindow_event_handler(widget, event) {
 
     save, cur, hadjustment, vadjustment;
 
+    if (cur.on_realize) cur.on_realize;
+
     if (Gtk.main_level()) gy_gtk_idleonce;
     return;
   }
@@ -661,23 +663,31 @@ func __gywindow_event_handler(widget, event) {
   }
 
   if (type == EventType.button_press) {
-    if (xndc >= vp(1) && xndc <= vp(2)) __gywindow_xs0=xs;
-    else __gywindow_xs0=[];
-    if (yndc >= vp(3) && yndc <= vp(4)) __gywindow_ys0=ys;
-    else __gywindow_ys0=[];
+    __gywindow_xs0=xs;
+    __gywindow_ys0=ys;
   }
 
   if (type == EventType.button_release) {
+
+    flags=long(lm(5));
+
+    if (is_func(cur.mouse_handler)) {
+      noop, cur.mouse_handler(cur.yid,
+                              __gywindow_xs0, __gywindow_ys0,
+                              xs, ys, button, flags);
+      if (!is_void(curwin) && curwin>=0) window, curwin;
+      return;
+    }
+
     lm2=lm;
     fact=1.;
     if (button==1) fact=2./3.;
     else if (button==3) fact=1.5;
 
-    flags=long(lm(5));
     xlog = flags & 128;
     ylog = flags & 256;
-    
-    if (!is_void(__gywindow_xs0)) {
+
+    if (noneof(__gywindow_xs0 == lm(1:2))) {
       if (xlog) {
         lm2(1:2)=__gywindow_xs0 / (xs/lm(1:2))^fact;
       } else {
@@ -686,7 +696,7 @@ func __gywindow_event_handler(widget, event) {
       limits, lm2(1), lm2(2);
     }
 
-    if (!is_void(__gywindow_ys0)) {
+    if (noneof(__gywindow_ys0 == lm(3:4))) {
       if (ylog) {
         lm2(3:4)=__gywindow_ys0 / (ys/lm(3:4))^fact;
       } else {
@@ -788,9 +798,42 @@ func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=)
   gy_signal_connect, da, "configure-event", __gywindow_redraw;
   gy_signal_connect, da, "draw", __gywindow_redraw;
   save, __gywindow, "", save(yid, xid=[], win, da, xylabel,
-                             realized=0, dpi=dpi, style=style);
+                             realized=0, dpi=dpi, style=style,
+                             mouse_handler=[]);
 }
 
+
+func gy_gtk_ywindow_mouse_handler(yid, handler)
+/* DOCUMENT gy_gtk_ywindow_mouse_handler, yid, handler
+
+     Attach application-specific mouse event handler Yorick window
+     created with gy_gtk_ywindow (this includes gywindow windows).
+
+     The handler will be passed only press-release events and allows
+     similar actions to what mouse() provides for regular Yorick
+     windows.
+
+   ARGUMENTS:
+     yid: the Yorick window ID number, first argument of
+          gy_gtk_window.
+     handler: Yorick function with prototype
+                func mouse_toto(yid, x0, y0, x1, y1, button, flags);
+              where x0, y0, x1 and y1 are the window coordinates of
+              the button press and release events, button is the
+              button which was pressed, flags is limits()(5).
+      
+   SEE ALSO: gy, gy_gtk_ywindow, gywindow, mouse, limits
+   
+ */
+{
+  save, __gywindow_find_by_yid(yid), mouse_handler=handler;
+}
+
+func mouse_toto(yid, x0, y0, x1, y1, button, flags)
+{
+  if (is_void(x0) || is_void(y0)) return;
+  write, format="%g, %g, %g, %g, %d, %d\n", x0, y0, x1, y1, button, flags;
+}
 
 func __gywindow_redraw(widg, event, userdata) {
   gy_gtk_idleonce;
@@ -1107,7 +1150,7 @@ func gy_gtk_ywindow_free_id(void)
   return ids(0)-1;
 }
 
-func gywindow(&yid, freeid=, dpi=, width=, height=, style=)
+func gywindow(&yid, freeid=, dpi=, width=, height=, style=, on_realize=)
 /* DOCUMENT gywindow, yid
 
     When the Gtk main loop is running, the Yorick main loop is
@@ -1140,6 +1183,7 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=)
       winkill, yid;
       __gywindow_init, yid,
         dpi=dpi, width=width, height=height, style=style;
+      save,__gywindow_find_by_yid(yid),on_realize;
     }
   gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
