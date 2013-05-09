@@ -392,7 +392,10 @@ func __gycmap_init(void) {
   
   combo=__gycmap_builder.get_object("combobox");
   noop, combo.set_active_id("gist");
-  gy_signal_connect, combo, "changed", __gycmap_combo_changed;
+  if (__gycmap_old_yorick)
+    noop, combo.set_sensitive(0);
+  else
+    gy_signal_connect, combo, "changed", __gycmap_combo_changed;
   
   gy_signal_connect, __gycmap_ebox, "button-press-event", __gycmap_callback;
   noop, __gycmap_win.set_title("Yorick color table chooser");
@@ -403,11 +406,24 @@ func __gycmap_init(void) {
 
 }
 
+func gycmap_gist_ct(name) {
+  palette, name+".gp";
+}
+
+if (!is_func(gistct)) {
+  __gycmap_old_yorick=1;
+  gistct=gycmap_gist_ct;
+ }
+
 func __gycmap_callback(widget, event) {
   extern __gycmap_cur_names;
   ev = gy.Gdk.EventButton(event);
   ev, x, x, y, y;
-  __gycmap_cmd, __gycmap_cur_names(long(y/19)+1);
+  name= __gycmap_cur_names(long(y/19)+1);
+  if (is_void(__gycmap.callback))
+    __gycmap_cmd, __gycmap_cur_names(long(y/19)+1);
+  else
+    noop, __gycmap.callback(__gycmap_cmd, name);
 }
 
 func __gycmap_combo_changed(widget, event) {
@@ -471,8 +487,11 @@ func __gycmap_combo_changed(widget, event) {
   noop, __gycmap_cur_img.show();
 }
 
-func gycmap(void)
+__gycmap=save();
+
+func gycmap(callback)
 /* DOCUMENT gycmap
+         or gycmap, callback
    
     A graphical wrapper around the cmap family of functions, gycmap
     allows the user to interactively select a color table by viewing
@@ -481,13 +500,20 @@ func gycmap(void)
     colormap is applied immediately. cmap_test can be used for
     displaying a test image.
 
+    If CALLBACK is specified, it is called as:
+      callback, fonction, colormap;
+    each time a new colormap is selected instead of simply setting the
+    color map.
+
     gycmap requires a recent version of Yorick (from git, as of
     2013-04).
 
    SEE ALSO: cmap, cmap_test
  */
 {
-  extern __gycmap_initialized, __gycmap_builder, __gycmap_win, __gycmap_ebox;
+  extern __gycmap_initialized, __gycmap_builder, __gycmap_win, __gycmap_ebox,
+    __gycmap;
+  save, __gycmap, callback;
   if (!__gycmap_initialized) __gycmap_init;
   gy_gtk_main, __gycmap_win;
 }
@@ -498,6 +524,14 @@ func __gywindow_on_error (void) {
   extern __gywindow_device;
   noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
 }
+
+func gy_gtk_allowgrab(allow) {
+  extern __gy_gtk_allowgrab;
+  __gy_gtk_allowgrab=allow;
+  if (!allow && !is_void(__gywindow_device))
+    noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
+}
+gy_gtk_allowgrab, 1;
 
 func gywinkill(yid)
 /* DOCUMENT gywinkill, yid
@@ -578,30 +612,31 @@ func __gywindow_event_handler(widget, event) {
     window, cur.yid, parent=gy_xid(widget), ypos=-24, dpi=cur.dpi,
       width=long(8.5*cur.dpi), height=long(11*cur.dpi), style=cur.style;
     save, cur, realized=1;
-
     sw = widget.get_parent().get_parent();
-
-    xcenter = long(4.25*cur.dpi);
-    
     hadjustment = sw.get_hadjustment();
-    noop, hadjustment.set_value(xcenter-hadjustment.get_page_size()/2);
-  
     vadjustment = sw.get_vadjustment();
-    noop, vadjustment.set_value(xcenter-vadjustment.get_page_size()/2);
-
-    save, cur, hadjustment, vadjustment;
-
+    save, cur, sw, hadjustment, vadjustment;
+    xcenter = long(4.25*cur.dpi);
+    noop, cur.hadjustment.set_value(xcenter-cur.hadjustment.get_page_size()/2);
+    noop, cur.vadjustment.set_value(xcenter-cur.vadjustment.get_page_size()/2);
     if (cur.on_realize) cur.on_realize;
-
     if (Gtk.main_level()) gy_gtk_idleonce;
     return;
   }
 
   if (!cur.realized) return;
 
+  if (type == EventType.configure) {
+    xcenter = long(4.25*cur.dpi);
+    noop, cur.sw.set_size_request(-1,-1);
+    noop, cur.hadjustment.set_value(xcenter-cur.hadjustment.get_page_size()/2);
+    noop, cur.vadjustment.set_value(xcenter-cur.vadjustment.get_page_size()/2);
+    return;
+  }
+
   pix2ndc=72.27/cur.dpi*0.0013;
   
-  if (type == EventType.enter_notify) {
+  if (type == EventType.enter_notify && __gy_gtk_allowgrab) {
     __gywindow_device = Gdk.Device(Gtk.get_current_event_device());
     noop, Gtk.Widget(widget)(window, win);
     noop, __gywindow_device.grab(win, Gdk.GrabOwnership.none, 1,
@@ -771,7 +806,7 @@ func gy_gtk_idleonce(void)
 
 if (is_void(__gywindow)) __gywindow=save();
 
-func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=)
+func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=, on_realize=)
 /* DOCUMENT gy_gtk_ywindow_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
@@ -799,7 +834,7 @@ func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=)
   gy_signal_connect, da, "draw", __gywindow_redraw;
   save, __gywindow, "", save(yid, xid=[], win, da, xylabel,
                              realized=0, dpi=dpi, style=style,
-                             mouse_handler=[]);
+                             mouse_handler=[], on_realize=on_realize);
 }
 
 
@@ -840,7 +875,7 @@ func __gywindow_redraw(widg, event, userdata) {
   return 1;
 }
 
-func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
+func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=, on_realize=)
 /* DOCUMENT widget = gy_gtk_ywindow(yid)
 
      Initialize a Gtk widget embedding Yorick window number YID. The
@@ -855,6 +890,9 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
  */
 {
   extern __gywindow;
+  if (is_void(dpi)) dpi=75;
+  //if (is_void(width)) width=long(6*dpi);
+  //if (is_void(height)) height=long(6*dpi);
   if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
   
@@ -869,7 +907,8 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
 
 
   sw = Gtk.ScrolledWindow.new(,);
-  //  noop, sw.set_size_request(width,height); 
+  if (!is_void(width) && !is_void(height))
+    noop, sw.set_size_request(width,height); 
   noop, box.pack_start(sw, 1, 1, 0);
 
   tmp = Gtk.Viewport.new(,);
@@ -880,7 +919,8 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=)
   noop, da.set_size_request(long(8.5*dpi),long(11*dpi));
   noop, tmp.add(da);
 
-  gy_gtk_ywindow_connect, yid, win, da, xylabel, dpi=dpi, style=style;
+  gy_gtk_ywindow_connect, yid, win, da, xylabel, dpi=dpi, style=style,
+    on_realize=on_realize;
 
   return box;
 }
@@ -949,13 +989,10 @@ func __gywindow_save(wdg, data)
   return 1;
 }
 
-func __gywindow_init(&yid, dpi=, width=, height=, style=) {
+func __gywindow_init(&yid, dpi=, width=, height=, style=, on_realize=) {
   extern __gywindow, adj;
   if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
-  if (is_void(dpi)) dpi=75;
-  if (is_void(width)) width=long(6*dpi);
-  if (is_void(height)) height=long(6*dpi);
   Gtk = gy.require("Gtk", "3.0");
   noop, Gtk.init_check(0,);
   gy_setlocale;
@@ -967,7 +1004,7 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=) {
 
   noop, box.pack_start(gy_gtk_ywindow(yid,
                                       dpi=dpi, width=width, height=height,
-                                      style=style),
+                                      style=style, on_realize=on_realize),
                        1, 1, 0);
 
   cur = __gywindow_find_by_yid(yid);
@@ -1182,8 +1219,8 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=, on_realize=)
     {
       winkill, yid;
       __gywindow_init, yid,
-        dpi=dpi, width=width, height=height, style=style;
-      save,__gywindow_find_by_yid(yid),on_realize;
+        dpi=dpi, width=width, height=height, style=style,
+        on_realize=on_realize;
     }
   gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
