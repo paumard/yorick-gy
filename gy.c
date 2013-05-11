@@ -352,6 +352,12 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     g_base_info_unref(itrf);
     break;
     
+  case GI_TYPE_TAG_GLIST:
+  case GI_TYPE_TAG_GSLIST:
+    if (yarg_nil(iarg)) arg->v_pointer=NULL;
+    else arg->v_pointer=yget_gy_Object(iarg)->object;
+    break;
+
   default:
     y_errorq("Unimplemented GIArgument type: %s",
 	     g_type_tag_to_string(type));
@@ -491,6 +497,14 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 	       g_base_info_get_type (itrf));
     }
     break;
+  case GI_TYPE_TAG_GLIST:
+  case GI_TYPE_TAG_GSLIST:
+    outObject = ypush_gy_Object();
+    outObject -> repo= o -> repo;
+    outObject -> object = arg -> v_pointer;
+    //outObject -> info = info;
+    //g_base_info_ref(info);
+    break;
   default:
     y_errorq("Unimplemented output GIArgument type: %s",
 	     g_type_tag_to_string(type));
@@ -601,7 +615,9 @@ gy_Object_eval(void *obj, int argc)
     if(!o->object) {
       if (yarg_gy_Object(argc))
 	out -> object = yget_gy_Object(argc--) -> object;
-      /* else if (GI_IS_OBJECT_INFO(o->info)) { */
+      else if (GI_IS_OBJECT_INFO(o->info)) {
+	out -> object =
+	  g_object_new(g_registered_type_info_get_g_type(o->info), NULL);
       /* 	/\* find new() method *\/ */
       /* 	GY_DEBUG("Looking for symbol \"new\" in %s\n", */
       /* 		 g_base_info_get_name(o->info)); */
@@ -610,7 +626,7 @@ gy_Object_eval(void *obj, int argc)
       /* 	if (!newinfo) */
       /* 	  y_errorq("\"new\" method not found for object type \"%s\"", */
       /* 		   g_base_info_get_name(o->info)); */
-      /*  } */
+      }
       else y_error("Object is not callable");
     } else
       out -> object = o->object;

@@ -291,7 +291,7 @@ func gy_gtk_window_suspend(win)
    SEE ALSO: gy, gyterm, gy_gtk_ycmd_connect
  */
 {
-  gy_signal_connect, win, "delete-event", __gyterm_suspend;
+  gy_signal_connect, win, "delete-event", gy_gtk_suspend;
   //  gy_signal_connect, win, "destroy", __gyterm_destroy;
 }
 
@@ -299,13 +299,22 @@ func __gyterm_destroy(widget) {
   write, "destroy called on "+ pr1(widget)+"\n";
 }
 
-func __gyterm_suspend(widget, event) {
+func gy_gtk_suspend(widget, event)
+/* DOCUMENT gy_gtk_suspend, widget
+    Hide widget and stop Gtk main loop if this was the last remaining
+    registered one.
+   SEE ALSO: gy_gtk_window_suspend
+ */
+{
   extern __gygtk_windows;
-  idx = where (__gygtk_windows(1,)==gy_id(widget));
-  if (!numberof(idx)) error("window is not managed");
+  idx = where (__gygtk_windows(1,)==gy_id(widget.get_toplevel()));
+  if (!numberof(idx)) gyerror, "window is not managed";
   __gygtk_windows(2,idx) = 0;
   noop, widget.hide();
-  if (noneof(__gygtk_windows(2,))) noop, gy.Gtk.main_quit();
+  if (noneof(__gygtk_windows(2,))) {
+    noop, gy.Gtk.main_quit();
+    if (is_func(gy_gtk_on_main_quit)) gy_gtk_on_main_quit;
+  }
   return 1;
 }
 
@@ -560,7 +569,7 @@ func gy_gtk_destroy(win)
  */
 {
   extern __gygtk_windows;
-  __gyterm_suspend, win; 
+  gy_gtk_suspend, win; 
   idx = where (__gygtk_windows(1,)!=gy_id(win));
   if (numberof(idx)) __gygtk_windows = __gygtk_windows(,idx);
   else __gygtk_windows = [];
@@ -937,14 +946,51 @@ func __gywindow_save(wdg, data)
   extern result;
   Gtk=gy.Gtk;
   
-  win = Gtk.Dialog.new();
-  fc = Gtk.FileChooserWidget.new(Gtk.FileChooserAction.save);
-  fcfc = Gtk.FileChooser(fc);
+  win = Gtk.FileChooserDialog();
+  fcfc = Gtk.FileChooser(win);
+  noop, fcfc.set_action(Gtk.FileChooserAction.save);
   noop, fcfc.set_do_overwrite_confirmation(1);
   noop, fcfc.set_create_folders(1);
-  noop, win.get_content_area().add(fc);
   noop, win.add_button(Gtk.STOCK_SAVE, Gtk.ResponseType.ok);
   noop, win.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.cancel);
+
+  filter = Gtk.FileFilter();
+  noop, filter.add_pattern("*.[pP][dD][fF]");
+  noop, filter.add_pattern("*.[eE][pP][sS]");
+  noop, filter.add_pattern("*.[jJ][pP][eE][gG]");
+  noop, filter.add_pattern("*.[jJ][pP][gG]");
+  noop, filter.add_pattern("*.[jJ][fF][iI][fF]");
+  noop, filter.add_pattern("*.[pP][nN][gG]");
+  noop, filter.set_name("All supported files");
+  noop, fcfc.add_filter(filter);
+
+  filter = Gtk.FileFilter();
+  noop, filter.add_pattern("*.[pP][dD][fF]");
+  noop, filter.set_name("PDF documents");
+  noop, fcfc.add_filter(filter);
+
+  filter = Gtk.FileFilter();
+  noop, filter.add_pattern("*.[eE][pP][sS]");
+  noop, filter.set_name("EPS documents");
+  noop, fcfc.add_filter(filter);
+
+  filter = Gtk.FileFilter();
+  noop, filter.add_pattern("*.[jJ][pP][eE][gG]");
+  noop, filter.add_pattern("*.[jJ][pP][gG]");
+  noop, filter.add_pattern("*.[jJ][fF][iI][fF]");
+  noop, filter.set_name("JPEG images");
+  noop, fcfc.add_filter(filter);
+
+  filter = Gtk.FileFilter();
+  noop, filter.add_pattern("*.[pP][nN][gG]");
+  noop, filter.set_name("PNG images");
+  noop, fcfc.add_filter(filter);
+
+  filter = Gtk.FileFilter();
+  noop, filter.add_pattern("*");
+  noop, filter.set_name("All files");
+  noop, fcfc.add_filter(filter);
+  
   noop, win.show_all();
   
   result = win.run();
@@ -1317,3 +1363,40 @@ extern gy_setlocale;
   */
 
 extern gy_gtk_builder_connector;
+
+local Y_GLADE, Y_DATA;
+/* DOCUMENT Y_GLADE, Y_DATA
+    Semi-colon separated list of directories where glade files may be
+    located.
+
+    By default, YGLADE is initialized to:
+        Y_GLADE="./:"+Y_USER+":"+pathform(_(Y_SITES,Y_SITE)+"glade/");
+
+    Likewise, Y_DATA directories contain additional
+    platform-independent files, such as icons.
+    
+   SEE ALSO: gy_gtk_builder
+ */
+if (is_void(Y_GLADE))
+  Y_GLADE="./:"+Y_USER+":"+pathform(_(Y_SITES,Y_SITE)+"glade/");
+
+if (is_void(Y_DATA))
+  Y_DATA="./:"+Y_USER+":"+pathform(_(Y_SITES,Y_SITE)+"data/");
+
+func gy_gtk_builder(fname)
+/* DOCUMENT builder = gy_gtk_builder(fname)
+   
+    Looks for a file named FNAME in the Y_GLADE path and returns a
+    gy.Gtk.Builder object with FNAME loaded.
+
+   SEE ALSO: Y_PATH, gy
+ */
+{
+  Gtk=gy.require("Gtk", "3.0");
+  file = find_in_path(fname,takefirst=1,path=Y_GLADE);
+  if (is_void(file)) gyerror("No such file in glade path: " + fname);
+  streplace,file,strfind("~",file),get_env("HOME");
+  builder = Gtk.Builder();
+  noop, builder.add_from_file(file);
+  return builder;
+}
