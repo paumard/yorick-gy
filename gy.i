@@ -197,7 +197,7 @@ __gyterm_history=array(string, __gyterm_history_size);
 __gyterm_idx=__gyterm_cur=1;
 __gyterm_max=0;
 
-func __gyterm_key_pressed(widget, event) {
+func __gyterm_key_pressed(widget, event, udata) {
   extern __gyterm_history, __gyterm_cur, __gyterm_max, __gyterm_idx;
 
   Gdk=gy.Gdk;
@@ -299,7 +299,7 @@ func __gyterm_destroy(widget) {
   write, "destroy called on "+ pr1(widget)+"\n";
 }
 
-func gy_gtk_suspend(widget, event)
+func gy_gtk_suspend(widget, event, udata)
 /* DOCUMENT gy_gtk_suspend, widget
     Hide widget and stop Gtk main loop if this was the last remaining
     registered one.
@@ -424,7 +424,7 @@ if (!is_func(gistct)) {
   gistct=gycmap_gist_ct;
  }
 
-func __gycmap_callback(widget, event) {
+func __gycmap_callback(widget, event, udata) {
   extern __gycmap_cur_names;
   ev = gy.Gdk.EventButton(event);
   ev, x, x, y, y;
@@ -435,7 +435,7 @@ func __gycmap_callback(widget, event) {
     noop, __gycmap.callback(__gycmap_cmd, name);
 }
 
-func __gycmap_combo_changed(widget, event) {
+func __gycmap_combo_changed(widget, event, udata) {
   extern __gycmap_cur_img, __gycmap_cur_names, __gycmap_cmd;
 
   lst = widget.get_active_id();
@@ -601,7 +601,7 @@ func gy_gtk_ywindow_reinit(yid, dpi=, style=)
   noop, cur.da.set_size_request(long(8.5*dpi),long(11*dpi));
 }
 
-func __gywindow_event_handler(widget, event) {
+func __gywindow_event_handler(widget, event, udata) {
   extern __gywindow, __gywindow_xs0, __gywindow_ys0, __gywindow_device;
   local curwin, win;
   

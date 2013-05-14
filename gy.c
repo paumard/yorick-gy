@@ -245,272 +245,6 @@ gy_Object_extract(void *obj, char * name)
   }
 }
 
-void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
-  //gint alen;
-  //GIArrayType atype;
-  GITypeTag type = g_type_info_get_tag(info);
-  GIBaseInfo * itrf;
-  switch(type) {
-  case GI_TYPE_TAG_VOID:
-    if (yarg_nil(iarg)) arg->v_pointer=NULL;
-    else y_error("unimplemented void... type (?!)");
-    break;
-  case GI_TYPE_TAG_BOOLEAN:
-    arg->v_boolean=yarg_true(iarg);
-    break;
-  case GI_TYPE_TAG_UINT8:
-    arg->v_uint8=(gint8)ygets_l(iarg);
-    break;
-  case GI_TYPE_TAG_INT32:
-    arg->v_int32=(gint32)ygets_l(iarg);
-    break;
-  case GI_TYPE_TAG_UINT32:
-    arg->v_int32=(guint32)ygets_l(iarg);
-    break;
-  case GI_TYPE_TAG_DOUBLE:
-    arg->v_double=ygets_d(iarg);
-    break;
-  case GI_TYPE_TAG_UTF8:
-  case GI_TYPE_TAG_FILENAME:
-    arg->v_string=ygets_q(iarg);
-    GY_DEBUG( "argument: %s\n", arg->v_string);
-    break;
-  case GI_TYPE_TAG_ARRAY:
-    //alen=g_type_info_get_array_length(info);
-    //atype=g_type_info_get_array_type (info);
-    switch (yarg_number(iarg)) {
-    case 0:
-      if (yarg_string(iarg)) arg->v_pointer=ygeta_q(iarg, 0, 0);
-      else if (yarg_nil(iarg)) arg->v_pointer=0;
-      else if (yarg_typeid(iarg)==Y_POINTER) arg->v_pointer=ygets_p(iarg);
-      else y_error("Unimplemented GIArgument array type");
-      break;
-    case 1:
-      arg->v_pointer=ygeta_l(iarg, 0, 0);
-      break;
-    case 2:
-      arg->v_pointer=ygeta_d(iarg, 0, 0);
-      break;
-    case 3:
-      arg->v_pointer=ygeta_z(iarg, 0, 0);
-      break;
-    default:
-      y_error("Unimplemented GIArgument array type");
-    }
-    break;
-  case GI_TYPE_TAG_INTERFACE:
-    itrf = g_type_info_get_interface(info);
-    switch(g_base_info_get_type (itrf)) {
-    case GI_INFO_TYPE_CALLBACK:
-      arg->v_pointer=yget_gy_Object(iarg)->object;
-      break;
-    case GI_INFO_TYPE_STRUCT:
-      {
-	GType g_type=
-	  g_registered_type_info_get_g_type ( (GIRegisteredTypeInfo *) itrf);
-	if (yarg_nil(iarg)) {
-	  arg->v_pointer = NULL;
-	  break;
-	}
-	if (g_type_is_a (g_type, G_TYPE_VALUE)) {
-	  GValue val=G_VALUE_INIT;
-	  // should check type passed from yorick!
-	  GObject * obj = yget_gy_Object(iarg)->object;
-	  g_value_init (&val, G_TYPE_OBJECT );
-	  g_value_set_object(&val, obj);
-	  arg->v_pointer = &val;
-	  break;
-	}
-      }
-      arg->v_pointer=yget_gy_Object(iarg)->object;
-      break;
-    case GI_INFO_TYPE_FLAGS:
-    case GI_INFO_TYPE_ENUM:
-      switch (g_enum_info_get_storage_type (itrf)) {
-      case GI_TYPE_TAG_INT32:
-	arg->v_int32=(gint32)ygets_l(iarg);
-	break;
-      case GI_TYPE_TAG_UINT32:
-	arg->v_uint32=(guint32)ygets_l(iarg);
-	break;
-      case GI_TYPE_TAG_INT64:
-	arg->v_int64=ygets_l(iarg);
-	break;
-      default:
-	y_errorn("Unimplemented GIArgument enum storage %ld",
-		 g_enum_info_get_storage_type (itrf));
-      }
-      break;
-    case GI_INFO_TYPE_OBJECT:
-      if (yarg_nil(iarg)) arg->v_pointer=NULL;
-      else arg->v_pointer=yget_gy_Object(iarg)->object;
-      break;
-    default:
-      y_errorn("Unimplemented GIArgument interface type %ld",
-	      g_base_info_get_type (itrf));
-    }
-    g_base_info_unref(itrf);
-    break;
-    
-  case GI_TYPE_TAG_GLIST:
-  case GI_TYPE_TAG_GSLIST:
-    if (yarg_nil(iarg)) arg->v_pointer=NULL;
-    else arg->v_pointer=yget_gy_Object(iarg)->object;
-    break;
-
-  default:
-    y_errorq("Unimplemented GIArgument type: %s",
-	     g_type_tag_to_string(type));
-  }
-}
-
-void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
-  GITypeTag type = g_type_info_get_tag(info);
-  GIBaseInfo * itrf;
-  gy_Object * outObject=NULL;
-
-  // const char * nspace, * name_with_namespace, * name;
-  switch(type) {
-  case GI_TYPE_TAG_VOID:
-    GY_DEBUG("Out argument is void\n")
-    /*
-    if (arg->v_pointer) {
-      GY_DEBUG("Out argument is not (nil)\n");
-      outObject = ypush_gy_Object();
-      outObject -> repo= o -> repo;
-      outObject -> object = arg -> v_pointer;
-
-      if (G_IS_OBJECT(outObject -> object)) {
-	GY_DEBUG("plut\n");
-	g_object_ref(outObject -> object);
-	outObject->info =
-	  g_irepository_find_by_gtype(o -> repo,
-				      G_OBJECT_TYPE(outObject->object));
-	if (!outObject->info) {
-	  y_warn("unable to find object type !");
-	  outObject -> info = info;
-	  g_base_info_ref(info);
-	}
-      } else {
-	GY_DEBUG("plat\n");
-	outObject -> info = info;
-	g_base_info_ref(info);
-	GY_DEBUG("plut\n");
-      }
-
-    } else {
-      GY_DEBUG("Out argument is (nil)\n");
-    */
-      ypush_nil();
-    //}
-    break;
-  case GI_TYPE_TAG_BOOLEAN:
-    ypush_long(arg->v_boolean);
-    break;
-  case GI_TYPE_TAG_INT8:
-    ypush_long(arg->v_int8);
-    break;
-  case GI_TYPE_TAG_UINT8:
-    ypush_long(arg->v_uint8);
-    break;
-  case GI_TYPE_TAG_INT16:
-    ypush_long(arg->v_int16);
-    break;
-  case GI_TYPE_TAG_UINT16:
-    ypush_long(arg->v_uint16);
-    break;
-  case GI_TYPE_TAG_INT32:
-    ypush_long(arg->v_int32);
-    break;
-  case GI_TYPE_TAG_UINT32:
-    ypush_long(arg->v_uint32);
-    break;
-  case GI_TYPE_TAG_INT64:
-    ypush_long(arg->v_int64);
-    break;
-  case GI_TYPE_TAG_UINT64:
-    ypush_long(arg->v_uint64);
-    break;
-  case GI_TYPE_TAG_DOUBLE:
-    GY_DEBUG("push double... ");
-    ypush_double(arg->v_double);
-    GY_DEBUG("%g\n", arg->v_double);
-    break;
-  case GI_TYPE_TAG_UTF8:
-  case GI_TYPE_TAG_FILENAME:
-    *ypush_q(0) = p_strcpy(arg->v_string);
-    break;
-  case GI_TYPE_TAG_INTERFACE:
-    GY_DEBUG("Out argument is interface\n");
-    itrf = g_type_info_get_interface(info);
-    switch(g_base_info_get_type (itrf)) {
-    case GI_INFO_TYPE_ENUM:
-    case GI_INFO_TYPE_FLAGS:
-    GY_DEBUG("Out argument is enum\n");
-      switch (g_enum_info_get_storage_type (itrf)) {
-      case GI_TYPE_TAG_INT32:
-	ypush_long(arg->v_int32);
-	GY_DEBUG("%d\n", arg->v_int32);
-	break;
-      case GI_TYPE_TAG_UINT32:
-	ypush_long(arg->v_uint32);
-	break;
-      case GI_TYPE_TAG_INT64:
-	ypush_long(arg->v_int64);
-	break;
-      default:
-	y_errorn("Unimplemented output GIArgument enum storage %ld",
-		 g_enum_info_get_storage_type (itrf));
-      }
-      break;
-    case GI_INFO_TYPE_STRUCT:
-    case GI_INFO_TYPE_OBJECT:
-      if (!arg -> v_pointer) ypush_nil();
-      outObject = ypush_gy_Object();
-      outObject -> repo= o -> repo;
-      outObject -> object = arg -> v_pointer;
-      if (!outObject->object)
-	y_warn("object is NULL!");
-      if (g_base_info_get_type (itrf) == GI_INFO_TYPE_OBJECT) {
-	g_object_ref(outObject -> object);
-
-	if (G_IS_OBJECT(outObject -> object)) {
-	  outObject->info =
-	    g_irepository_find_by_gtype(o -> repo,
-					G_OBJECT_TYPE(outObject->object));
-	  if (!outObject->info) {
-	    GY_DEBUG("unable to find object type !");
-	    //outObject -> info = info;
-	    //g_base_info_ref(info);
-	  }
-	} else {
-	  outObject -> info = info;
-	  g_base_info_ref(info);
-	}
-	break;
-      }
-      outObject -> info = info;
-      g_base_info_ref(info);
-      break;
-    default:
-      y_errorn("Unimplemented output GIArgument interface type %ld",
-	       g_base_info_get_type (itrf));
-    }
-    break;
-  case GI_TYPE_TAG_GLIST:
-  case GI_TYPE_TAG_GSLIST:
-    outObject = ypush_gy_Object();
-    outObject -> repo= o -> repo;
-    outObject -> object = arg -> v_pointer;
-    //outObject -> info = info;
-    //g_base_info_ref(info);
-    break;
-  default:
-    y_errorq("Unimplemented output GIArgument type: %s",
-	     g_type_tag_to_string(type));
-  }
-}
-
 int
 yarg_gy_Object(int iarg)
 {
@@ -612,28 +346,59 @@ gy_Object_eval(void *obj, int argc)
 
   if (isobject || isitrf) {
     gy_Object* out = ypush_gy_Object(0);
+
+    out->info=o->info;
+    g_base_info_ref(o->info);
+    out->repo=o->repo;
+
     if(!o->object) {
       if (yarg_gy_Object(argc))
 	out -> object = yget_gy_Object(argc--) -> object;
       else if (GI_IS_OBJECT_INFO(o->info)) {
+	guint n_parameters = argc/2;
+	GParameter *parameters=NULL;
+	gint iprop, nprop = g_object_info_get_n_properties(o->info);
+	if (n_parameters) {
+	  parameters=g_new0(GParameter, n_parameters);
+	  guint p;
+	  int iarg=argc;
+	  long index;
+	  GIPropertyInfo * cur=NULL;
+	  GITypeInfo * ti;
+	  for (p=0; p<n_parameters; ++p) {
+	    index=yarg_key(iarg);
+	    GY_DEBUG("index=%d\n", index);
+	    if (index<0) parameters[p].name = ygets_q(iarg);
+	    else parameters[p].name=yfind_name(index);
+	    --iarg;
+	    GY_DEBUG("property name=\"%s\"\n", parameters[p].name);
+
+	    
+	    for (iprop=0; iprop<nprop; ++iprop) {
+	      GY_DEBUG("i=%d/%d\n", iprop, nprop);
+	      cur = g_object_info_get_property (o->info, iprop);
+	      GY_DEBUG("comparing %s with %s\n", parameters[p].name, g_base_info_get_name(cur));
+	      if (!strcmp(parameters[p].name, g_base_info_get_name(cur))) {
+		GY_DEBUG("found it\n");
+		ti = g_property_info_get_type(cur);
+		break;
+	      }
+	      g_base_info_unref(cur);
+	    }
+	    gy_iarg2gvalue(ti, iarg, &(parameters[p].value));
+	    g_base_info_unref(ti);
+	  }
+	}
 	out -> object =
-	  g_object_new(g_registered_type_info_get_g_type(o->info), NULL);
-      /* 	/\* find new() method *\/ */
-      /* 	GY_DEBUG("Looking for symbol \"new\" in %s\n", */
-      /* 		 g_base_info_get_name(o->info)); */
-      /* 	GIFunctionInfo * newinfo = */
-      /* 	  g_object_info_find_method (o->info, "new"); */
-      /* 	if (!newinfo) */
-      /* 	  y_errorq("\"new\" method not found for object type \"%s\"", */
-      /* 		   g_base_info_get_name(o->info)); */
+	  g_object_newv(g_registered_type_info_get_g_type(o->info),
+			n_parameters,
+			parameters);
+	return;
       }
       else y_error("Object is not callable");
     } else
       out -> object = o->object;
-    out->info=o->info;
-    g_base_info_ref(o->info);
     g_object_ref(out->object);
-    out->repo=o->repo;
 
     /* try setting / getting properties */
     int iarg = argc; // last is newly pushed reference
@@ -1057,321 +822,6 @@ Y_gy_list_object(int argc) {
   }
 }
 
-////  generic callbacks
-
-void gy_callback0(void* arg1, gy_signal_data* sd) {
-  GY_DEBUG("in gy_callback0()\n");
-  const char * cmd = sd -> cmd;
-  GISignalInfo * cbinfo = sd -> info;
-  GIRepository * repo = sd -> repo;
-  void * data = sd -> data;
-  //  void * udata = sd -> data;
-  GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
-  char*buf=NULL;
-  int ndrops=0;
-
-  ypush_check(4);
-
-  long idx1=0, idxud=0;
-
-  if (cbinfo) {
-    const char * var1 = "__gy_callback_var1";
-    const char * varud = "__gy_callback_userdata";
-    idx1 = yget_global(var1, 0);
-    idxud = yget_global(varud, 0);
-
-    gy_Object * o1 = ypush_gy_Object();
-    yput_global(idx1, 0);
-
-    o1 -> object = arg1;
-    o1 -> repo = repo;
-    g_object_ref(o1 -> object);
-    o1 -> info =
-	  g_irepository_find_by_gtype(o1 -> repo,
-				      G_OBJECT_TYPE(o1 -> object));
-
-    gy_Object * oud = ypush_gy_Object();
-    yput_global(idxud, 0);
-    oud -> object = data;
-    oud -> repo = repo;
-
-    const char * fmt = "__gy_callback_retval = %s (%s, %s)";
-    char * buf=p_malloc(sizeof(char)*
-			(strlen(fmt)+strlen(cmd)+strlen(var1)+strlen(varud)));
-    sprintf(buf, fmt, cmd, var1, varud);
-    cmd=buf;
-    ndrops+=1;
-  }
-
-  long dims[2]={1,1};
-  *ypush_q(dims) = p_strcpy(cmd);
-  ++ndrops;
-  if (buf) p_free(buf);
-  yexec_include(0,1);
-  yarg_drop(ndrops);
-
-}
-
-inline gboolean gy_callback_retbool() {
-  long idx=yget_global("__gy_callback_retval", 0);
-  ypush_check(1);
-  ypush_global(idx);
-  long retval=0;
-  if (yarg_number(0)) retval=ygets_l(0);
-  yarg_drop(1);
-  return retval;
-}
-
-gboolean gy_callback0_bool(void* arg1, gy_signal_data* sd) {
-  gy_callback0(arg1, sd) ;
-  return gy_callback_retbool();
-}
-
-void gy_callback1(void* arg1, void* arg2, gy_signal_data* sd) {
-  const char * cmd = sd -> cmd;
-  GISignalInfo * cbinfo = sd -> info;
-  GIRepository * repo = sd -> repo;
-  //void * udata = sd -> data;
-  GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
-  char*buf=NULL;
-  int ndrops=0;
-
-  ypush_check(4);
-
-  long idx1=0, idx2=0;
-
-  if (cbinfo) {
-    const char * var1 = "__gy_callback_var1";
-    const char * var2 = "__gy_callback_var2";
-    idx1 = yget_global(var1, 0);
-    idx2 = yget_global(var2, 0);
-
-    gy_Object * o1 = ypush_gy_Object();
-    yput_global(idx1, 0);
-    gy_Object * o2 = ypush_gy_Object();
-    yput_global(idx2, 0);
-
-    o1 -> object = arg1;
-    o1 -> repo = repo;
-    g_object_ref(o1 -> object);
-    o1 -> info =
-	  g_irepository_find_by_gtype(o1 -> repo,
-				      G_OBJECT_TYPE(o1 -> object));
-
-    o2 -> object = arg2;
-    o2 -> repo = repo;
-
-
-    const char * fmt = "__gy_callback_retval = %s (%s, %s)";
-    char * buf=p_malloc(sizeof(char)*
-			(strlen(fmt)+strlen(cmd)+strlen(var1)+strlen(var2)));
-    sprintf(buf, fmt, cmd, var1, var2);
-    cmd=buf;
-    ndrops+=2;
-  }
-
-  long dims[2]={1,1};
-  *ypush_q(dims) = p_strcpy(cmd);
-  ++ndrops;
-  if (buf) p_free(buf);
-  yexec_include(0,1);
-  yarg_drop(ndrops);
-
-}
-
-gboolean gy_callback1_bool(void* arg1, void* arg2, gy_signal_data* sd) {
-  gy_callback1(arg1, arg2, sd) ;
-  return gy_callback_retbool();
-}
-
-void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) {
-  const char * cmd = sd -> cmd;
-  GISignalInfo * cbinfo = sd -> info;
-  GIRepository * repo = sd -> repo;
-  // void * udata = sd -> data;
-  GY_DEBUG("Callback called with pointer %p: \"%s\"\n", cmd, (char*)cmd);
-  char*buf=NULL;
-  int ndrops=0;
-
-  ypush_check(5);
-
-  long idx1=0, idx2=0, idx3=0;
-
-  if (cbinfo) {
-    const char * var1 = "__gy_callback_var1";
-    const char * var2 = "__gy_callback_var2";
-    const char * var3 = "__gy_callback_var3";
-    idx1 = yget_global(var1, 0);
-    idx2 = yget_global(var2, 0);
-    idx3 = yget_global(var3, 0);
-
-    gy_Object * o1 = ypush_gy_Object();
-    yput_global(idx1, 0);
-    gy_Object * o2 = ypush_gy_Object();
-    yput_global(idx2, 0);
-    gy_Object * o3 = ypush_gy_Object();
-    yput_global(idx3, 0);
-
-    o1 -> object = arg1;
-    o1 -> repo = repo;
-    g_object_ref(o1 -> object);
-    o1 -> info =
-	  g_irepository_find_by_gtype(o1 -> repo,
-				      G_OBJECT_TYPE(o1 -> object));
-
-    o2 -> object = arg2;
-    o2 -> repo = repo;
-    o3 -> object = arg3;
-    o3 -> repo = repo;
-
-
-    const char * fmt = "__gy_callback_retval = %s (%s, %s, %s)";
-    char * buf=p_malloc(sizeof(char)*
-			(strlen(fmt)+strlen(cmd)
-			 +strlen(var1)+strlen(var2)+strlen(var3)));
-    sprintf(buf, fmt, cmd, var1, var2, var3);
-    cmd=buf;
-    ndrops+=3;
-  }
-
-  long dims[2]={1,1};
-  *ypush_q(dims) = p_strcpy(cmd);
-  ++ndrops;
-  if (buf) p_free(buf);
-  yexec_include(0,1);
-  yarg_drop(ndrops);
-
-}
-
-gboolean gy_callback2_bool(void* arg1, void* arg2, void*arg3,
-			   gy_signal_data* sd) {
-  gy_callback2(arg1, arg2, arg3, sd) ;
-  return gy_callback_retbool();
-}
-
-///// end callbacks
-
-void
-__gy_signal_connect(GObject * object,
-		    GIBaseInfo * info,
-		    GIRepository * repo,
-		    const gchar* sig,
-		    const gchar * cmd,
-		    void * data);
-
-void
-Y_gy_signal_connect(int argc) {
-  gy_Object * o = yget_gy_Object(argc-1);
-  if (!o->info || !GI_IS_OBJECT_INFO(o->info) || ! o -> object )
-    y_error("First argument but hold GObject derivative instance");
-
-  if (!strcmp(G_OBJECT_TYPE_NAME(o->object), "GtkBuilder")) {
-    long idx1 = yget_global("__gy_gtk_builder", 0);
-    void* usage=yget_use(argc-1);
-    ypush_use(usage);
-    yput_global(idx1, 0);
-    long dims[Y_DIMSIZE]={1,1};
-    *ypush_q(dims)=p_strcpy("noop, __gy_gtk_builder"
-			    ".connect_signals_full("
-			    "gy_gtk_builder_connector(),)");
-    yexec_include(0, 1);
-    ypush_nil();
-    return;
-  }
-
-  ystring_t sig = ygets_q(argc-2);
-  ystring_t cmd = NULL;
-
-  if (yarg_string(argc-3)) cmd = p_strcpy(ygets_q(argc-3));
-  else if (yarg_func(argc-3)) {
-    cmd = p_strcpy(yfind_name(yget_ref(argc-3)));
-  } else y_error("callback must be string or function");
-
-  void* data;
-  if (argc>=4) data = yget_gy_Object(argc-4)->object; 
-
-  __gy_signal_connect(o->object, o->info, o->repo, sig, cmd, data);
-
-  ypush_nil();
-}
-
-void
-__gy_signal_connect(GObject * object, GIBaseInfo * info, GIRepository * repo,
-		    const gchar * sig, const gchar * cmd, void * data)
-{
-  GIBaseInfo * cur, *next;
-  GISignalInfo * cbinfo=NULL;
-  gint i, n;
-
-  cur = info;
-  g_base_info_ref(cur);
-  while (!cbinfo && cur) {
-    GY_DEBUG("%s\n", g_base_info_get_name(cur) );
-    n= g_object_info_get_n_signals(cur);
-    for (i=0; i<n; ++i) {
-      cbinfo = g_object_info_get_signal(cur, i);
-      if (!strcmp(g_base_info_get_name(cbinfo), sig))
-	break;
-      g_base_info_unref(cbinfo);
-      cbinfo=NULL;
-    }
-    next = g_object_info_get_parent(cur);
-    g_base_info_unref(cur);
-    cur = next;
-  }
-  if (!cbinfo) y_errorq ("Object does not support signal \"%s\"", sig);
-
-  gy_signal_data * sd = g_new0(gy_signal_data, 1);
-
-  GY_DEBUG("%p type: %s, name: %s, is signal info: %d, is callable: %d\n",
-	   cbinfo,
-	   g_info_type_to_string(g_base_info_get_type(cbinfo)),
-	   g_base_info_get_name(cbinfo),
-	   GI_IS_SIGNAL_INFO(cbinfo),
-	   GI_IS_CALLABLE_INFO(cbinfo));
-
-  sd -> info = cbinfo;
-  sd -> cmd = cmd;
-  sd -> repo = repo;
-  sd -> data = data;
-
-  GCallback * voidcallbacks[]={(GCallback*)(&gy_callback0),
-			       (GCallback*)(&gy_callback1),
-			       (GCallback*)(&gy_callback2)};
-  GCallback * gbooleancallbacks[]={(GCallback*)(&gy_callback0_bool),
-				   (GCallback*)(&gy_callback1_bool),
-				   (GCallback*)(&gy_callback2_bool)};
-
-  GCallback * * callbacks=NULL;
-
-  gint nargs = g_callable_info_get_n_args (cbinfo);
-  GY_DEBUG("Callback takes %d arguments\n", nargs);
-  
-  GITypeInfo * retinfo = g_callable_info_get_return_type (cbinfo);
-  GITypeTag    rettag  = g_type_info_get_tag(retinfo); 
-  g_base_info_unref(retinfo);
-  switch(rettag) {
-  case GI_TYPE_TAG_VOID:
-    callbacks=voidcallbacks;
-    break;
-  case GI_TYPE_TAG_BOOLEAN:
-    callbacks=gbooleancallbacks;
-    break;
-  default:
-    y_errorq("unimplemented output type for callback: %",
-	     g_type_tag_to_string (rettag));
-  }
-
-  if (nargs>2) y_errorn("unimplemented: callback with %ld arguments", nargs);
-
-  GY_DEBUG("Callback address: %p\n", callbacks[nargs]);
-
-  g_signal_connect (object,
-		    sig,
-		    G_CALLBACK(callbacks[nargs]),
-		    sd);
-}
-
 static gboolean _gy_debug = 0;
 
 gboolean gy_debug() { return _gy_debug; }
@@ -1428,29 +878,3 @@ Y_gy_thread(int argc) {
   sleep(100);
 }
 */
-
-void
-gyGtkBuilderConnectFunc(void *builder,
-			GObject *object,
-			const gchar *signal_name,
-			const gchar *handler_name,
-			GObject *connect_object,
-			GConnectFlags flags,
-			gpointer user_data)
-
-{
-  // builder is a GtkBuilder but we don't want to use gtk headers
-  GIObjectInfo * info = g_irepository_find_by_gtype(NULL, // should use repo
-						    G_OBJECT_TYPE(object));
-  GY_DEBUG("autoconnecting %s to %s\n", signal_name, handler_name);
-  // ! we may leak memory
-  __gy_signal_connect(object, info, NULL, signal_name, p_strcpy(handler_name),
-		      user_data);
-  g_base_info_unref(info);
-}
-
-void
-Y_gy_gtk_builder_connector(int argc)
-{
-  ypush_gy_Object()->object = (void*)&gyGtkBuilderConnectFunc;
-}

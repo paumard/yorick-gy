@@ -105,3 +105,6 @@ gboolean gy_callback1_bool(void* arg1, void* arg2, gy_signal_data* sd) ;
 void gy_callback2(void* arg1, void* arg2, void* arg3, gy_signal_data* sd) ;
 gboolean gy_callback2_bool(void* arg1, void* arg2, void*arg3,
 			   gy_signal_data* sd) ;
+
+/// Properties
+void gy_iarg2gvalue(GITypeInfo * info, int iarg, GValue* val);
