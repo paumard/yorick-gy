@@ -30,13 +30,9 @@ gy_iarg2gvalue(GITypeInfo * info, int iarg, GValue* val)
     switch(g_base_info_get_type (itrf)) {
     case GI_INFO_TYPE_ENUM:
       {
-	const GEnumValue * ev=NULL;
-	const gchar * name = g_base_info_get_name(info);
-	GY_DEBUG("info name: %s\n", name);
-	GType gt = g_type_module_register_enum ( "toto", name, ev);
-	g_value_init(val, gt);
+	g_value_init(val,  g_registered_type_info_get_g_type(itrf));
 	g_value_set_enum (val, ygets_l(iarg));
-      break;
+	break;
       }
       break;
     default:

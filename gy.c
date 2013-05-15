@@ -386,6 +386,7 @@ gy_Object_eval(void *obj, int argc)
 	      g_base_info_unref(cur);
 	    }
 	    gy_iarg2gvalue(ti, iarg, &(parameters[p].value));
+	    --iarg;
 	    g_base_info_unref(ti);
 	  }
 	}

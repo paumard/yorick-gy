@@ -1279,30 +1279,14 @@ func gyerror(msg)
  */
 {
   aspect = 1.61803398875; // nombre d'or
-  Gtk = gy.require("Gtk", "3.0");
-  noop, Gtk.init(0, );
-  gy_setlocale;
-  win = Gtk.Dialog.new();
-  noop, win.set_title("Yorick error");
-  noop, win.set_size_request(long(200*aspect), 200);
-  hbox = Gtk.Box.new(Gtk.Orientation.horizontal, 0);
-  vbox = Gtk.Box.new(Gtk.Orientation.vertical, 0);
-  noop, hbox.add(Gtk.Label.new("   "));
-  noop, hbox.add(Gtk.Image.new_from_stock(Gtk.STOCK_DIALOG_ERROR,
-                                          Gtk.IconSize.dialog));
-  noop, hbox.add(Gtk.Label.new("   "));
-  noop, hbox.add(vbox);
-  noop, hbox.add(Gtk.Label.new("   "));
-  noop, vbox.add(Gtk.Label.new("Yorick error:"));
-  noop, vbox.add(Gtk.Label.new(msg));
-  noop, win.get_content_area().add(Gtk.Label.new(""));
-  noop, win.get_content_area().add(hbox);
-  noop, win.get_content_area().add(Gtk.Label.new(""));
-  noop, win.get_content_area().set_homogeneous(1);
-  noop, win.add_button(Gtk.STOCK_OK, Gtk.ResponseType.ok);
-  noop, win.show_all();
-  noop, win.run();
-  noop, win.destroy();
+  Gtk=gy_gtk_init();
+  dmsg = Gtk.MessageDialog("message-type", Gtk.MessageType.error,
+                           buttons=Gtk.ButtonsType.close,
+                           text=msg);
+  noop, dmsg.set_title("Yorick error");
+  noop, dmsg.set_size_request(long(200*aspect), 200);
+  noop, dmsg.run();
+  noop, dmsg.destroy();
 }
 
 //// utilities
@@ -1399,4 +1383,13 @@ func gy_gtk_builder(fname)
   builder = Gtk.Builder();
   noop, builder.add_from_file(file);
   return builder;
+}
+
+func gy_gtk_init(argv)
+{
+  Gtk=gy.require("Gtk", "3.0");
+  ret = Gtk.init_check(numberof(argv),argv);
+  gy_setlocale;
+  if (!ret) error, "Gtk initialization failed";
+  return Gtk;
 }
