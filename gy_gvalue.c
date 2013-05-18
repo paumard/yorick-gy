@@ -20,8 +20,44 @@
 #include "gy.h"
 
 void
-gy_iarg2gvalue(GITypeInfo * info, int iarg, GValue* val)
+gy_value_init(GValue * val, GITypeInfo * info)
 {
+  GY_DEBUG("in gy_value_init\n");
+  GITypeTag type = g_type_info_get_tag(info);
+  GIBaseInfo * itrf;
+  GY_DEBUG("Initializing GValue to %s\n", g_type_tag_to_string(type));
+  switch (type) {
+  case GI_TYPE_TAG_INTERFACE:
+    itrf = g_type_info_get_interface(info);
+    switch(g_base_info_get_type (itrf)) {
+    case GI_INFO_TYPE_OBJECT:
+      g_value_init(val, G_TYPE_OBJECT);
+      break;
+    case GI_INFO_TYPE_ENUM:
+      g_value_init(val,  g_registered_type_info_get_g_type(itrf));
+      GY_DEBUG("GValue is enum\n");
+      break;
+    default:
+      y_errorn("Unimplemented GValue interface type %ld",
+	       g_base_info_get_type (itrf));
+    }
+    g_base_info_unref(itrf);
+    break;
+  case GI_TYPE_TAG_UTF8:
+  case GI_TYPE_TAG_FILENAME:
+    g_value_init(val, G_TYPE_STRING);
+    GY_DEBUG("GValue is string\n");
+    break;
+  default:
+    y_error("Unimplement property GValue type");
+  }
+  GY_DEBUG("out gy_value_init\n");
+}
+
+void
+gy_value_set_iarg(GValue* val, GITypeInfo * info, int iarg)
+{
+  GY_DEBUG("in gy_value_set_iarg\n");
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
   switch (type) {
@@ -30,24 +66,50 @@ gy_iarg2gvalue(GITypeInfo * info, int iarg, GValue* val)
     switch(g_base_info_get_type (itrf)) {
     case GI_INFO_TYPE_ENUM:
       {
-	g_value_init(val,  g_registered_type_info_get_g_type(itrf));
 	g_value_set_enum (val, ygets_l(iarg));
 	break;
       }
       break;
     default:
-      y_errorn("Unimplemented GIArgument interface type %ld",
+      y_errorn("Unimplemented GValue interface type %ld",
 	       g_base_info_get_type (itrf));
     }
     g_base_info_unref(itrf);
     break;
   case GI_TYPE_TAG_UTF8:
   case GI_TYPE_TAG_FILENAME:
-    g_value_init(val, G_TYPE_STRING);
     g_value_set_static_string (val, ygets_q(iarg));
     GY_DEBUG("GValue is string: \"%s\"\n", ygets_q(iarg));
     break;
   default:
     y_error("Unimplement property GValue type");
   }
+  GY_DEBUG("out gy_iarg2gvalue\n");
+}
+
+void
+gy_value_push(GValue * pval, GITypeInfo * info, gy_Object* o)
+{
+  GITypeTag tag = g_type_info_get_tag(info);
+  if (tag != GI_TYPE_TAG_INTERFACE)
+    y_error ("fix me: only properties of type object supported yet");
+  GIBaseInfo * outinfo=NULL;
+	
+  outinfo = g_type_info_get_interface (info);
+  if (!GI_IS_OBJECT_INFO(outinfo)) {
+    g_base_info_unref(outinfo);
+    y_error ("fix me: only properties of type object supported yet");
+  }
+
+  GObject * prop=g_value_get_object(pval);
+  g_object_ref_sink(prop);
+  if (!prop) y_error("get property failed");
+  GY_DEBUG("pushing result... ");
+  ypush_check(1);
+  gy_Object * out = ypush_gy_Object();
+
+  out->info=outinfo;
+  out->object=prop;
+  out->repo=o->repo;
+
 }

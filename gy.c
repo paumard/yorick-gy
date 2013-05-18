@@ -363,29 +363,24 @@ gy_Object_eval(void *obj, int argc)
 	  guint p;
 	  int iarg=argc;
 	  long index;
-	  GIPropertyInfo * cur=NULL;
+	  GIPropertyInfo * cur;
 	  GITypeInfo * ti;
+
+	  gchar * name =NULL;
 	  for (p=0; p<n_parameters; ++p) {
 	    index=yarg_key(iarg);
 	    GY_DEBUG("index=%d\n", index);
 	    if (index<0) parameters[p].name = ygets_q(iarg);
 	    else parameters[p].name=yfind_name(index);
+
+	    cur = gy_base_info_get_property_info(o->info, parameters[p].name);
+	    if (!cur) y_errorq("No such porperty in object: \"%s\"", name);
 	    --iarg;
 	    GY_DEBUG("property name=\"%s\"\n", parameters[p].name);
-
-	    
-	    for (iprop=0; iprop<nprop; ++iprop) {
-	      GY_DEBUG("i=%d/%d\n", iprop, nprop);
-	      cur = g_object_info_get_property (o->info, iprop);
-	      GY_DEBUG("comparing %s with %s\n", parameters[p].name, g_base_info_get_name(cur));
-	      if (!strcmp(parameters[p].name, g_base_info_get_name(cur))) {
-		GY_DEBUG("found it\n");
-		ti = g_property_info_get_type(cur);
-		break;
-	      }
-	      g_base_info_unref(cur);
-	    }
-	    gy_iarg2gvalue(ti, iarg, &(parameters[p].value));
+	    ti  = g_property_info_get_type(cur);
+	    g_base_info_unref(cur);
+	    gy_value_init(&(parameters[p].value), ti);
+	    gy_value_set_iarg(&(parameters[p].value), ti, iarg);
 	    --iarg;
 	    g_base_info_unref(ti);
 	  }
@@ -416,78 +411,55 @@ gy_Object_eval(void *obj, int argc)
     int lim=0;
     while (iarg > lim) { // 0 is output
       index=yarg_key(iarg);
-      GY_DEBUG("index: %ld\n", index);
+      GY_DEBUG("Key iarg: %d, index: %ld\n", iarg, index);
       if (index<0) {
 	getting=1;
 	index=yget_ref(iarg);
 	if (index<0) name = ygets_q(iarg);
 	else name=yfind_name(index);
+	GY_DEBUG("Getting property %s\n", name);
       } else {
 	getting=0;
 	name=yfind_name(index);
+	GY_DEBUG("Setting property %s\n", name);
       }
-      GY_DEBUG("property: %s\n",name);
-      if (isobject) n = g_object_info_get_n_properties(o->info);
-      else  n = g_interface_info_get_n_properties(o->info);
-      GY_DEBUG("object has %d properties.\n", n);
-      for (i=0; i<n; ++i) {
-	GY_DEBUG("i=%d/%d\n", i, n);
-	cur = isobject?
-	  g_object_info_get_property (o->info, i):
-	  g_interface_info_get_property (o->info, i);
-	GY_DEBUG("comparing %s with %s\n", name, g_base_info_get_name(cur));
-	if (!strcmp(name, g_base_info_get_name(cur))) {
-	  GY_DEBUG("found it\n");
-	  ti = g_property_info_get_type(cur);
-	  pf = g_property_info_get_flags (cur);
-	  GITypeTag tag = g_type_info_get_tag(ti);
-	  if (getting) { //y_error("Getting");
-	    if (!(pf & G_PARAM_READABLE)) y_error("property is not readable");
-	    GY_DEBUG("getting\n");
-	    long idx = yget_ref(iarg-1);
 
-	    GY_DEBUG("Getting property... ");
-	    GIBaseInfo * outinfo=NULL;
-	    if (tag != GI_TYPE_TAG_INTERFACE)
-	      y_error ("fix me: only properties of type object supported yet");
+      cur = gy_base_info_get_property_info(o->info, name);
+      if (!cur) y_errorq("property not found: \"%s\"\n", name);
+      GY_DEBUG("Canonical property name: %s\n",name);
+      ti = g_property_info_get_type(cur);
+      pf = g_property_info_get_flags (cur);
 
-	    outinfo = g_type_info_get_interface (ti);
-	    if (!GI_IS_OBJECT_INFO(outinfo)) {
-	      g_base_info_unref(outinfo);
-	      y_error ("fix me: only properties of type object supported yet");
-	    }
+      GValue val=G_VALUE_INIT;
+      //gy_value_init(&val, ti);
 
-	    GValue val=G_VALUE_INIT;
-	    g_value_init(&val, G_TYPE_OBJECT);
-	    g_object_get_property(o->object, name, &val);
+      //g_value_reset(&val);
+      g_value_init(&val,
+		   g_object_class_find_property(G_OBJECT_GET_CLASS(o->object),
+						name)->value_type);
 
-	    GObject * prop=g_value_get_object(&val);
-	    if (!prop) y_error("get property failed");
+      iarg--;
+      if (getting) { //y_error("Getting");
+	if (!(pf & G_PARAM_READABLE)) y_error("property is not readable");
+	GY_DEBUG("Getting property %s", name);
 
-	    GY_DEBUG("pushing result... ");
-	    ypush_check(1);
-	    gy_Object * out = ypush_gy_Object();
-	    yput_global(idx, 0);
-	    yarg_swap(0, 1); // keep o on top
-	    GY_DEBUG("done.\n");
+	long idx=yget_ref(iarg);
+	GY_DEBUG("Output variable iarg: %d, index: %ld\n", iarg, idx);
 
-	    out->info=outinfo;
-	    out->object=prop;
-	    out->repo=o->repo;
-	    
-	    ++lim;
-	    //	    yarg_drop(0);
-	  } else {
-	    if (!(pf & G_PARAM_WRITABLE)) y_error("property is not writable");
-	    else y_error("fix me: setting properties not implemented");
-	  }
-	  break;
-	}
+	g_object_get_property(o->object, name, &val);
+	gy_value_push(&val, ti, o);
+
+	yput_global(idx, 0);
+	yarg_drop(1);
+	GY_DEBUG("done.\n");
+      } else {
+	if (!(pf & G_PARAM_WRITABLE)) y_error("property is not writable");
+	GY_DEBUG("Setting property %s\n", name);
+	gy_value_set_iarg(&val, ti, iarg);
+	g_object_set_property(o->object, name, &val);
       }
-      if (i==n) y_error("property not found!");
-      --iarg;
+      iarg--;
     }
-    
 
     return;
   }
@@ -563,6 +535,8 @@ gy_Object_eval(void *obj, int argc)
   sigaction(SIGABRT, &act, oldact);
   sigaction(SIGSEGV, &act, oldact);
 
+  GY_DEBUG("Calling function %s... ", g_base_info_get_name(o->info));
+
   gboolean success = g_function_info_invoke (o->info,
 					     in_args,
 					     n_in,
@@ -570,6 +544,8 @@ gy_Object_eval(void *obj, int argc)
 					     n_out,
 					     &retval,
 					     &err);
+  GY_DEBUG("done.");
+
   sigaction(SIGABRT, oldact, NULL);
 
   fesetenv(&fenv_in);

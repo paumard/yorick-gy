@@ -1,9 +1,9 @@
 # these values filled in by    yorick -batch make.i
-Y_MAKEDIR=/usr/lib/yorick
-Y_EXE=/usr/lib/yorick/bin/yorick
+Y_MAKEDIR=
+Y_EXE=
 Y_EXE_PKGS=
-Y_EXE_HOME=/usr/lib/yorick
-Y_EXE_SITE=/usr/lib/yorick
+Y_EXE_HOME=
+Y_EXE_SITE=
 Y_HOME_PKG=
 
 # ----------------------------------------------------- optimization flags
@@ -15,9 +15,9 @@ TGT=$(DEFAULT_TGT)
 # ------------------------------------------------ macros for this package
 
 PKG_NAME=gy
-PKG_I=gy.i
+PKG_I=gy0.i
 
-OBJS=gy.o gy_repository.o gy_argument.o gy_gvalue.o gy_callback.o
+OBJS=gy.o gy_repository.o gy_argument.o gy_gvalue.o gy_callback.o gy_property.o
 
 # change to give the executable a name other than yorick
 PKG_EXENAME=yorick
@@ -38,7 +38,7 @@ PKG_CLEAN=
 # autoload file for this package, if any
 PKG_I_START=
 # non-pkg.i include files for this package, if any
-PKG_I_EXTRA=gyhelloworld.i
+PKG_I_EXTRA=gy.i gyhelloworld.i
 
 # -------------------------------- standard targets and rules (in Makepkg)
 
