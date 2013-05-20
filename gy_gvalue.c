@@ -123,6 +123,8 @@ gy_value_push(GValue * pval, GITypeInfo * info, gy_Object* o)
       }
       break;
     }
+  default:
+    y_error("Unimplemented");
   }
 
 
