@@ -91,25 +91,39 @@ void
 gy_value_push(GValue * pval, GITypeInfo * info, gy_Object* o)
 {
   GITypeTag tag = g_type_info_get_tag(info);
-  if (tag != GI_TYPE_TAG_INTERFACE)
-    y_error ("fix me: only properties of type object supported yet");
-  GIBaseInfo * outinfo=NULL;
-	
-  outinfo = g_type_info_get_interface (info);
-  if (!GI_IS_OBJECT_INFO(outinfo)) {
-    g_base_info_unref(outinfo);
-    y_error ("fix me: only properties of type object supported yet");
+  switch (tag) {
+  case GI_TYPE_TAG_INTERFACE:
+    {
+      GIBaseInfo * itrf = g_type_info_get_interface (info);
+      switch(g_base_info_get_type (itrf)) {
+      case GI_INFO_TYPE_ENUM:
+	ypush_long(g_value_get_enum(pval));
+	g_base_info_unref(itrf);
+	break;
+      case GI_INFO_TYPE_OBJECT:
+	{
+	  GObject * prop=g_value_get_object(pval);
+	  g_object_ref_sink(prop);
+	  if (!prop) {
+	    g_base_info_unref(itrf);
+	    y_error("get property failed");
+	  }
+	  GY_DEBUG("pushing result... ");
+	  ypush_check(1);
+	  gy_Object * out = ypush_gy_Object();
+
+	  out->info=itrf;
+	  out->object=prop;
+	  out->repo=o->repo;
+	}
+	break;
+      default:
+	g_base_info_unref(itrf);
+	y_error ("fix me: only properties of type object supported yet");
+      }
+      break;
+    }
   }
 
-  GObject * prop=g_value_get_object(pval);
-  g_object_ref_sink(prop);
-  if (!prop) y_error("get property failed");
-  GY_DEBUG("pushing result... ");
-  ypush_check(1);
-  gy_Object * out = ypush_gy_Object();
-
-  out->info=outinfo;
-  out->object=prop;
-  out->repo=o->repo;
 
 }

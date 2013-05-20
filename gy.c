@@ -161,9 +161,11 @@ gy_Object_extract(void *obj, char * name)
     isobject = GI_IS_OBJECT_INFO(o->info),
     isitrf = GI_IS_INTERFACE_INFO(o->info);
 
+
+  /// Look for method
+  GIBaseInfo * info =NULL;
+
   if (isstruct || isobject || isitrf) {
-    
-    GIBaseInfo * info =NULL;
 
     GY_DEBUG("Looking for symbol %s in %s\n",
 	   name,
@@ -201,46 +203,67 @@ gy_Object_extract(void *obj, char * name)
       }
       return;
     }
+  }
 
-    if (isobject) {
-      static const char const * sigprefix = "signal_";
-      int sigprefixlen=7;
+  /// Look for property
+  if (isobject || isitrf) {
+    ystring_t name2 = p_strcpy(name);
+    GIPropertyInfo * cur = gy_base_info_get_property_info(o->info, name2);
+    if (cur) {
+      GValue val=G_VALUE_INIT;
+      GITypeInfo * ti = g_property_info_get_type(cur);
+      g_value_init(&val,
+		   g_object_class_find_property(G_OBJECT_GET_CLASS(o->object),
+						name2)->value_type);
+      g_object_get_property(o->object, name2, &val);
+      gy_value_push(&val, ti, o);
+      g_base_info_unref(ti);
 
-      if (!strncmp(name, sigprefix, sigprefixlen)) {
-	name += sigprefixlen;
+      p_free(name2);
+      return;
+    }
+    p_free(name2);
+  }
 
-	GY_DEBUG("Looking for signal %s in %s\n",
-		 name,
-		 g_base_info_get_name(o->info));
-  
-
-	gint nc = g_object_info_get_n_signals (o->info);
-
-	GY_DEBUG("%s has %d signals\n", g_base_info_get_name(o->info), nc);
-
-	GISignalInfo * ci=NULL ;
-	gint i;
-
-	for (i=0; i<nc; ++i) {
-	  ci = g_object_info_get_signal(o->info, i);
-	  if (!strcmp(g_base_info_get_name (ci), name)) {
-	    info=ci;
-	    break;
-	  }
-	  g_base_info_unref(ci);
+  /// Look for signal
+  if (isobject) {
+    static const char const * sigprefix = "signal_";
+    int sigprefixlen=7;
+    
+    if (!strncmp(name, sigprefix, sigprefixlen)) {
+      name += sigprefixlen;
+      
+      GY_DEBUG("Looking for signal %s in %s\n",
+	       name,
+	       g_base_info_get_name(o->info));
+      
+      
+      gint nc = g_object_info_get_n_signals (o->info);
+      
+      GY_DEBUG("%s has %d signals\n", g_base_info_get_name(o->info), nc);
+      
+      GISignalInfo * ci=NULL ;
+      gint i;
+      
+      for (i=0; i<nc; ++i) {
+	ci = g_object_info_get_signal(o->info, i);
+	if (!strcmp(g_base_info_get_name (ci), name)) {
+	  info=ci;
+	  break;
 	}
-	if (info) {
-	  gy_Object * out = ypush_gy_Object();
-	  out -> info = info;
-	  out->repo = o->repo;
-	  return;
-	}
-	y_errorq("Signal %s not found", name);
+	g_base_info_unref(ci);
       }
+      if (info) {
+	gy_Object * out = ypush_gy_Object();
+	out -> info = info;
+	out->repo = o->repo;
+	return;
+      }
+      y_errorq("Signal %s not found", name);
     }
 
     if (!info) {
-      y_error("No such method");
+      y_error("No such member");
     }
   }
 }
@@ -323,8 +346,8 @@ gy_Object_eval(void *obj, int argc)
 	    GY_DEBUG("pushing result... ");
 	    yput_global(idx, 0);
 	    GY_DEBUG("done.\n");
-	    ++lim;
-	    //	    yarg_drop(0);
+	    	    ++lim;
+	    //yarg_drop(0);
 	  } else {
 	    gy_Argument_getany(&rarg, ti, --iarg);
 	    if (!g_field_info_set_field(cur, out->object, &rarg))
@@ -458,6 +481,7 @@ gy_Object_eval(void *obj, int argc)
 	gy_value_set_iarg(&val, ti, iarg);
 	g_object_set_property(o->object, name, &val);
       }
+      g_base_info_unref(ti);
       iarg--;
     }
 
