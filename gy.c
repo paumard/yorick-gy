@@ -208,7 +208,7 @@ gy_Object_extract(void *obj, char * name)
   /// Look for property
   if (isobject || isitrf) {
     ystring_t name2 = p_strcpy(name);
-    GIPropertyInfo * cur = gy_base_info_get_property_info(o->info, name2);
+    GIPropertyInfo * cur = gy_base_info_find_property_info(o->info, name2);
     if (cur) {
       GValue val=G_VALUE_INIT;
       GITypeInfo * ti = g_property_info_get_type(cur);
@@ -219,6 +219,26 @@ gy_Object_extract(void *obj, char * name)
       gy_value_push(&val, ti, o);
       g_base_info_unref(ti);
 
+      p_free(name2);
+      return;
+    }
+    p_free(name2);
+  }
+
+  /// Look for field
+  if (isobject || isstruct) {
+    ystring_t name2 = p_strcpy(name);
+    GIBaseInfo * cur = gy_base_info_find_field_info(o->info, name2);
+    if (cur) {
+      GITypeInfo * ti = g_field_info_get_type(cur);
+      GIArgument rarg;
+      gboolean success=g_field_info_get_field(cur, o->object, &rarg);
+      if (!success)
+	y_error("get field failed");
+
+      gy_Argument_pushany(&rarg, ti, o);
+
+      g_base_info_unref(ti);
       p_free(name2);
       return;
     }
@@ -285,89 +305,13 @@ gy_Object_eval(void *obj, int argc)
     y_error("Object lacks type information. "
 	    "Please cast it appropriately");
 
-  if (GI_IS_STRUCT_INFO(o->info)){
-    gy_Object* out = ypush_gy_Object(0);
-    if(!o->object) {
-      if (yarg_gy_Object(argc))
-	out -> object = yget_gy_Object(argc--) -> object;
-      else
-	out -> object = g_malloc0(g_struct_info_get_size (o->info));
-    } else
-      out -> object = o->object;
-    out->repo=o->repo;
-    out->info=o->info;
-    g_base_info_ref(o->info);
-
-    int iarg = argc; // last is newly pushed reference
-    long index;
-    char * name;
-    gint i, n;
-    GIBaseInfo * cur=NULL;
-    GIArgument rarg;
-    GITypeInfo * ti;
-    gboolean getting=0;
-
-    if (argc==1 && yarg_nil(iarg)) return;
-
-    int lim=0;
-    while (iarg > lim) { // 0 is output
-      index=yarg_key(iarg);
-      GY_DEBUG("index: %ld\n", index);
-      if (index<0) {
-	getting=1;
-	index=yget_ref(iarg);
-	if (index<0) name = ygets_q(iarg);
-	else name=yfind_name(index);
-      } else {
-	getting=0;
-	name=yfind_name(index);
-      }
-      GY_DEBUG("field: %s\n",name);
-      n = g_struct_info_get_n_fields(o->info);
-      for (i=0; i<n; ++i) {
-	GY_DEBUG("i=%d/%d\n", i, n);
-	cur = g_struct_info_get_field (o->info, i);
-	GY_DEBUG("comparing %s with %s\n", name, g_base_info_get_name(cur));
-	if (!strcmp(name, g_base_info_get_name(cur))) {
-	  GY_DEBUG("found it\n");
-	  ti = g_field_info_get_type(cur);
-	  if (getting) { //y_error("Getting");
-	    GY_DEBUG("getting\n");
-	    long idx = yget_ref(iarg-1);
-
-	    GY_DEBUG("Getting field... ");
-	    gboolean success=g_field_info_get_field(cur, o->object, &rarg);
-	    GY_DEBUG("done.\n");
-
-	    if (!success)
-	      y_error("get field failed");
-
-	    gy_Argument_pushany(&rarg, ti, o);
-	    GY_DEBUG("pushing result... ");
-	    yput_global(idx, 0);
-	    GY_DEBUG("done.\n");
-	    	    ++lim;
-	    //yarg_drop(0);
-	  } else {
-	    gy_Argument_getany(&rarg, ti, --iarg);
-	    if (!g_field_info_set_field(cur, out->object, &rarg))
-	      y_error("set field failed");
-	  }
-	  break;
-	}
-      }
-      if (i==n) y_error("field not found!");
-      --iarg;
-    }
-    
-    return;
-  }
-
   gboolean
     isobject = GI_IS_OBJECT_INFO(o->info),
+    isstruct = GI_IS_STRUCT_INFO(o->info),
     isitrf   = GI_IS_INTERFACE_INFO(o->info);
 
-  if (isobject || isitrf) {
+  if (isobject || isitrf || isstruct) {
+    GY_DEBUG("Pushing gy_Object return value\n");
     gy_Object* out = ypush_gy_Object(0);
 
     out->info=o->info;
@@ -375,12 +319,23 @@ gy_Object_eval(void *obj, int argc)
     out->repo=o->repo;
 
     if(!o->object) {
-      if (yarg_gy_Object(argc))
-	out -> object = yget_gy_Object(argc--) -> object;
-      else if (GI_IS_OBJECT_INFO(o->info)) {
+      if (yarg_gy_Object(argc)) {
+	GY_DEBUG("This is a cast operation\n");
+	gy_Object * ino = yget_gy_Object(argc--);
+	GY_DEBUG("here\n");
+	out -> object = ino -> object;
+	GY_DEBUG("here\n");
+	if ((ino->info && GI_IS_OBJECT_INFO(ino->info)) ||
+	    GI_IS_OBJECT_INFO(out->info)) {
+	  GY_DEBUG("This is an object, referencing\n");
+	  g_object_ref(out->object);
+	}
+	GY_DEBUG("Cast done\n");
+      } else if (isobject) {
+	GY_DEBUG("Instanciating GObject\n");
+	/* instanciate GObject, interpret arguments as properties */
 	guint n_parameters = argc/2;
 	GParameter *parameters=NULL;
-	gint iprop, nprop = g_object_info_get_n_properties(o->info);
 	if (n_parameters) {
 	  parameters=g_new0(GParameter, n_parameters);
 	  guint p;
@@ -392,11 +347,11 @@ gy_Object_eval(void *obj, int argc)
 	  gchar * name =NULL;
 	  for (p=0; p<n_parameters; ++p) {
 	    index=yarg_key(iarg);
-	    GY_DEBUG("index=%d\n", index);
+	    GY_DEBUG("index=%ld\n", index);
 	    if (index<0) parameters[p].name = ygets_q(iarg);
 	    else parameters[p].name=yfind_name(index);
 
-	    cur = gy_base_info_get_property_info(o->info, parameters[p].name);
+	    cur = gy_base_info_find_property_info(o->info, parameters[p].name);
 	    if (!cur) y_errorq("No such porperty in object: \"%s\"", name);
 	    --iarg;
 	    GY_DEBUG("property name=\"%s\"\n", parameters[p].name);
@@ -412,22 +367,29 @@ gy_Object_eval(void *obj, int argc)
 	  g_object_newv(g_registered_type_info_get_g_type(o->info),
 			n_parameters,
 			parameters);
+	g_object_ref_sink(out->object);
 	return;
+      } else if (isstruct) {
+	GY_DEBUG("Instanciating C struct\n");
+	/* instanciate struct, arguments will be parsed later */
+	out -> object = g_malloc0(g_struct_info_get_size (o->info));
       }
       else y_error("Object is not callable");
-    } else
+    } else {
       out -> object = o->object;
-    g_object_ref(out->object);
+      if (GI_IS_OBJECT_INFO(o->info) || GI_IS_OBJECT_INFO(out->info))
+	g_object_ref(out->object);
+    }
 
     /* try setting / getting properties */
     int iarg = argc; // last is newly pushed reference
     long index;
     char * name;
-    gint i, n;
-    GIPropertyInfo * cur=NULL;
+    GIBaseInfo * cur=NULL;
     GITypeInfo * ti;
     gboolean getting=0;
     GParamFlags pf;
+    GIArgument rarg;
 
     if (argc==1 && yarg_nil(iarg)) return;
 
@@ -440,49 +402,62 @@ gy_Object_eval(void *obj, int argc)
 	index=yget_ref(iarg);
 	if (index<0) name = ygets_q(iarg);
 	else name=yfind_name(index);
-	GY_DEBUG("Getting property %s\n", name);
+	GY_DEBUG("Getting member %s\n", name);
       } else {
 	getting=0;
 	name=yfind_name(index);
-	GY_DEBUG("Setting property %s\n", name);
+	GY_DEBUG("Setting member %s\n", name);
       }
 
-      cur = gy_base_info_get_property_info(o->info, name);
-      if (!cur) y_errorq("property not found: \"%s\"\n", name);
-      GY_DEBUG("Canonical property name: %s\n",name);
-      ti = g_property_info_get_type(cur);
-      pf = g_property_info_get_flags (cur);
+      if ( (cur = gy_base_info_find_property_info(o->info, name)) ) {
+	/* NAME is property */ 
+	GY_DEBUG("Canonical property name: %s\n",name);
+	ti = g_property_info_get_type(cur);
+	pf = g_property_info_get_flags (cur);
 
-      GValue val=G_VALUE_INIT;
-      //gy_value_init(&val, ti);
+	GValue val=G_VALUE_INIT;
+	g_value_init(&val,
+		     g_object_class_find_property(G_OBJECT_GET_CLASS(o->object),
+						  name)->value_type);
 
-      //g_value_reset(&val);
-      g_value_init(&val,
-		   g_object_class_find_property(G_OBJECT_GET_CLASS(o->object),
-						name)->value_type);
-
-      iarg--;
-      if (getting) { //y_error("Getting");
-	if (!(pf & G_PARAM_READABLE)) y_error("property is not readable");
-	GY_DEBUG("Getting property %s", name);
-
-	long idx=yget_ref(iarg);
-	GY_DEBUG("Output variable iarg: %d, index: %ld\n", iarg, idx);
-
-	g_object_get_property(o->object, name, &val);
-	gy_value_push(&val, ti, o);
-
-	yput_global(idx, 0);
-	yarg_drop(1);
-	GY_DEBUG("done.\n");
-      } else {
-	if (!(pf & G_PARAM_WRITABLE)) y_error("property is not writable");
-	GY_DEBUG("Setting property %s\n", name);
-	gy_value_set_iarg(&val, ti, iarg);
-	g_object_set_property(o->object, name, &val);
-      }
-      g_base_info_unref(ti);
-      iarg--;
+	iarg--;
+	if (getting) {
+	  if (!(pf & G_PARAM_READABLE)) y_error("property is not readable");
+	  GY_DEBUG("Getting property %s", name);
+	  long idx=yget_ref(iarg);
+	  GY_DEBUG("Output variable iarg: %d, index: %ld\n", iarg, idx);
+	  g_object_get_property(o->object, name, &val);
+	  gy_value_push(&val, ti, o);
+	  yput_global(idx, 0);
+	  yarg_drop(1);
+	  GY_DEBUG("done.\n");
+	} else {
+	  if (!(pf & G_PARAM_WRITABLE)) y_error("property is not writable");
+	  GY_DEBUG("Setting property %s\n", name);
+	  gy_value_set_iarg(&val, ti, iarg);
+	  g_object_set_property(o->object, name, &val);
+	}
+	g_base_info_unref(ti);
+      } else if ( (cur = gy_base_info_find_field_info(o->info, name)) ) {
+	/* NAME is field */
+	GY_DEBUG("Member %s is a Field.\n", name);
+	ti = g_field_info_get_type(cur);
+	if (getting) { //y_error("Getting");
+	  GY_DEBUG("getting\n");
+	  long idx = yget_ref(iarg-1);
+	  gboolean success=g_field_info_get_field(cur, o->object, &rarg);
+	  if (!success)
+	    y_error("get field failed");
+	  gy_Argument_pushany(&rarg, ti, o);
+	  yput_global(idx, 0);
+	  yarg_drop(1);
+	} else {
+	  gy_Argument_getany(&rarg, ti, --iarg);
+	  if (!g_field_info_set_field(cur, out->object, &rarg))
+	    y_error("set field failed");
+	}
+      } else y_errorq("%s is neither property not field", name);
+      --iarg;
     }
 
     return;

@@ -20,8 +20,10 @@
 #include "gy.h"
 
 GIPropertyInfo *
-gy_base_info_get_property_info(GIBaseInfo * objectinfo, char * name)
+gy_base_info_find_property_info(GIBaseInfo * objectinfo, char * name)
 {
+
+  if (GI_IS_STRUCT_INFO(objectinfo)) return NULL;
 
   gboolean isobject = GI_IS_OBJECT_INFO(objectinfo);
   gint iprop, nprop = isobject?
@@ -30,10 +32,16 @@ gy_base_info_get_property_info(GIBaseInfo * objectinfo, char * name)
 
   GIPropertyInfo * cur=NULL;
   int hyphenize;
+  char * oname = NULL;
   for (hyphenize=0; hyphenize<=1; ++hyphenize) {
     if (hyphenize) {
       GY_DEBUG("Property %s not found, trying to replace underscores with hyphens\n", name);
+      oname = p_strcpy(name);
       g_strdelimit(name, "_", '-');
+      if (!strcmp(name, oname)) {
+	p_free(oname);
+	return NULL;
+      }
     }
 	      
     for (iprop=0; iprop<nprop; ++iprop) {
@@ -44,10 +52,57 @@ gy_base_info_get_property_info(GIBaseInfo * objectinfo, char * name)
       GY_DEBUG("comparing %s with %s\n", name, g_base_info_get_name(cur));
       if (!strcmp(name, g_base_info_get_name(cur))) {
 	GY_DEBUG("found it\n");
+	p_free(oname);
 	return cur;
       }
       g_base_info_unref(cur);
     }
   }
+  strcpy(name, oname);
+  p_free(oname);
+  return NULL;
+}
+
+GIPropertyInfo *
+gy_base_info_find_field_info(GIBaseInfo * objectinfo, char * name)
+{
+
+  if (GI_IS_INTERFACE_INFO(objectinfo)) return NULL;
+
+  gboolean isobject = GI_IS_OBJECT_INFO(objectinfo);
+  gint iprop, nprop = isobject?
+    g_object_info_get_n_fields(objectinfo):
+    g_struct_info_get_n_fields(objectinfo);
+
+  GIFieldInfo * cur=NULL;
+  int hyphenize;
+  char * oname = NULL;
+  for (hyphenize=0; hyphenize<=1; ++hyphenize) {
+    if (hyphenize) {
+      GY_DEBUG("Field %s not found, trying to replace underscores with hyphens\n", name);
+      oname = p_strcpy(name);
+      g_strdelimit(name, "_", '-');
+      if (!strcmp(name, oname)) {
+	p_free(oname);
+	return NULL;
+      }
+    }
+	      
+    for (iprop=0; iprop<nprop; ++iprop) {
+      GY_DEBUG("i=%d/%d\n", iprop, nprop);
+      cur = isobject?
+	g_object_info_get_field (objectinfo, iprop):
+	g_struct_info_get_field (objectinfo, iprop);
+      GY_DEBUG("comparing %s with %s\n", name, g_base_info_get_name(cur));
+      if (!strcmp(name, g_base_info_get_name(cur))) {
+	GY_DEBUG("found it\n");
+	p_free(oname);
+	return cur;
+      }
+      g_base_info_unref(cur);
+    }
+  }
+  strcpy(name, oname);
+  p_free(oname);
   return NULL;
 }

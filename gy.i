@@ -555,7 +555,7 @@ func __gywindow_event_handler(widget, event, udata) {
   EventType=Gdk.EventType;
 
   ev = Gdk.EventAny(event);
-  ev, type, type;
+  type = ev.type;
   
   if (type == EventType.map && !cur.realized) {
     window, cur.yid, parent=gy_xid(widget), ypos=-24, dpi=cur.dpi,
@@ -1250,9 +1250,7 @@ func gy_xid(wdg)
  */
 
 {
-  local gdkwin;
-  noop, gy.Gtk.Widget(wdg)(window, gdkwin);
-  return gy.GdkX11.X11Window(gdkwin).get_xid();
+  return gy.GdkX11.X11Window(gy.Gtk.Widget(wdg).window).get_xid();
 }
 
 

@@ -107,7 +107,9 @@ gboolean gy_callback2_bool(void* arg1, void* arg2, void*arg3,
 			   gy_signal_data* sd) ;
 
 /// Properties
-GIPropertyInfo * gy_base_info_get_property_info(GIBaseInfo * objectinfo,
+GIPropertyInfo * gy_base_info_find_property_info(GIBaseInfo * objectinfo,
+						char * name);
+GIPropertyInfo * gy_base_info_find_field_info(GIBaseInfo * objectinfo,
 						char * name);
 void gy_value_init(GValue* val, GITypeInfo *info);
 void gy_value_set_iarg(GValue* val, GITypeInfo * info, int iarg);

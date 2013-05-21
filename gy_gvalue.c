@@ -92,6 +92,47 @@ gy_value_push(GValue * pval, GITypeInfo * info, gy_Object* o)
 {
   GITypeTag tag = g_type_info_get_tag(info);
   switch (tag) {
+    /* basic types */
+  case GI_TYPE_TAG_VOID:
+    ypush_nil();
+    break;
+  case GI_TYPE_TAG_BOOLEAN:
+    *ypush_c(NULL) = g_value_get_boolean(pval);
+    break;
+  case GI_TYPE_TAG_INT8:
+    *ypush_c(NULL) = g_value_get_schar(pval);
+    break;
+  case GI_TYPE_TAG_UINT8:
+    *ypush_uc(NULL)= g_value_get_uchar(pval);
+    break;
+  case GI_TYPE_TAG_INT16:
+  case GI_TYPE_TAG_INT32:
+    *ypush_i(NULL) = g_value_get_int(pval);
+    break;
+  case GI_TYPE_TAG_UINT16:
+  case GI_TYPE_TAG_UINT32:
+    *ypush_i(NULL) = g_value_get_uint(pval);
+    break;
+  case GI_TYPE_TAG_INT64:
+    ypush_long(g_value_get_int64(pval));
+    break;
+  case GI_TYPE_TAG_UINT64:
+    ypush_long(g_value_get_uint64(pval));
+    break;
+  case GI_TYPE_TAG_FLOAT:
+    *ypush_f(NULL)=g_value_get_float(pval);
+    break;
+  case GI_TYPE_TAG_DOUBLE:
+    ypush_double(g_value_get_double(pval));
+    break;
+  case GI_TYPE_TAG_GTYPE:
+    ypush_long(g_value_get_gtype(pval));
+    break;
+  case GI_TYPE_TAG_UTF8:
+  case GI_TYPE_TAG_FILENAME:
+    *ypush_q(NULL) = p_strcpy(g_value_get_string(pval));
+    break;
+    /* interface types */
   case GI_TYPE_TAG_INTERFACE:
     {
       GIBaseInfo * itrf = g_type_info_get_interface (info);
@@ -118,8 +159,8 @@ gy_value_push(GValue * pval, GITypeInfo * info, gy_Object* o)
 	}
 	break;
       default:
-	g_base_info_unref(itrf);
-	y_error ("fix me: only properties of type object supported yet");
+      	g_base_info_unref(itrf);
+      	y_error ("fix me: only properties of type object supported yet");
       }
       break;
     }
