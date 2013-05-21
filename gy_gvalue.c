@@ -27,6 +27,45 @@ gy_value_init(GValue * val, GITypeInfo * info)
   GIBaseInfo * itrf;
   GY_DEBUG("Initializing GValue to %s\n", g_type_tag_to_string(type));
   switch (type) {
+    /* basic types */
+  case GI_TYPE_TAG_BOOLEAN:
+    g_value_init(val, G_TYPE_BOOLEAN);
+    break;
+  case GI_TYPE_TAG_INT8:
+    g_value_init(val, G_TYPE_CHAR);
+    break;
+  case GI_TYPE_TAG_UINT8:
+    g_value_init(val, G_TYPE_UCHAR);
+    break;
+  case GI_TYPE_TAG_INT16:
+  case GI_TYPE_TAG_INT32:
+    g_value_init(val, G_TYPE_INT);
+    break;
+  case GI_TYPE_TAG_UINT16:
+  case GI_TYPE_TAG_UINT32:
+    g_value_init(val, G_TYPE_INT);
+    break;
+  case GI_TYPE_TAG_INT64:
+    g_value_init(val, G_TYPE_INT64);
+    break;
+  case GI_TYPE_TAG_UINT64:
+    g_value_init(val, G_TYPE_UINT64);
+    break;
+  case GI_TYPE_TAG_FLOAT:
+    g_value_init(val, G_TYPE_FLOAT);
+    break;
+  case GI_TYPE_TAG_DOUBLE:
+    g_value_init(val, G_TYPE_DOUBLE);
+    break;
+  case GI_TYPE_TAG_GTYPE:
+    g_value_init(val, G_TYPE_GTYPE);
+    break;
+  case GI_TYPE_TAG_UTF8:
+  case GI_TYPE_TAG_FILENAME:
+    g_value_init(val, G_TYPE_STRING);
+    GY_DEBUG("GValue is string\n");
+    break;
+    /* interface types */
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
@@ -43,11 +82,7 @@ gy_value_init(GValue * val, GITypeInfo * info)
     }
     g_base_info_unref(itrf);
     break;
-  case GI_TYPE_TAG_UTF8:
-  case GI_TYPE_TAG_FILENAME:
-    g_value_init(val, G_TYPE_STRING);
-    GY_DEBUG("GValue is string\n");
-    break;
+  case GI_TYPE_TAG_VOID:
   default:
     y_error("Unimplement property GValue type");
   }
@@ -55,20 +90,58 @@ gy_value_init(GValue * val, GITypeInfo * info)
 }
 
 void
-gy_value_set_iarg(GValue* val, GITypeInfo * info, int iarg)
+gy_value_set_iarg(GValue* pval, GITypeInfo * info, int iarg)
 {
   GY_DEBUG("in gy_value_set_iarg\n");
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
   switch (type) {
+  case GI_TYPE_TAG_BOOLEAN:
+    g_value_set_boolean(pval, ygets_c(iarg));
+    break;
+  case GI_TYPE_TAG_INT8:
+    g_value_set_schar(pval, ygets_c(iarg));
+    break;
+  case GI_TYPE_TAG_UINT8:
+    g_value_set_uchar(pval, ygets_c(iarg));
+    break;
+  case GI_TYPE_TAG_INT16:
+  case GI_TYPE_TAG_INT32:
+    g_value_set_int(pval, ygets_i(iarg));
+    break;
+  case GI_TYPE_TAG_UINT16:
+  case GI_TYPE_TAG_UINT32:
+    g_value_set_uint(pval, ygets_i(iarg));
+    break;
+  case GI_TYPE_TAG_INT64:
+    g_value_set_int64(pval, ygets_l(iarg));
+    break;
+  case GI_TYPE_TAG_UINT64:
+    g_value_set_uint64(pval, ygets_l(iarg));
+    break;
+  case GI_TYPE_TAG_FLOAT:
+    g_value_set_float(pval, ygets_f(iarg));
+    break;
+  case GI_TYPE_TAG_DOUBLE:
+    g_value_set_double(pval, ygets_d(iarg));
+    break;
+  case GI_TYPE_TAG_GTYPE:
+    g_value_set_gtype(pval, ygets_l(iarg));
+    break;
+  case GI_TYPE_TAG_UTF8:
+  case GI_TYPE_TAG_FILENAME:
+    g_value_set_static_string (pval, ygets_q(iarg));
+    GY_DEBUG("GValue is string: \"%s\"\n", ygets_q(iarg));
+    break;
+    /* interface types */
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
     case GI_INFO_TYPE_ENUM:
-      {
-	g_value_set_enum (val, ygets_l(iarg));
-	break;
-      }
+      g_value_set_enum (pval, ygets_l(iarg));
+      break;
+    case GI_INFO_TYPE_OBJECT:
+      g_value_set_object(pval, yget_gy_Object(iarg)->object);
       break;
     default:
       y_errorn("Unimplemented GValue interface type %ld",
@@ -76,11 +149,7 @@ gy_value_set_iarg(GValue* val, GITypeInfo * info, int iarg)
     }
     g_base_info_unref(itrf);
     break;
-  case GI_TYPE_TAG_UTF8:
-  case GI_TYPE_TAG_FILENAME:
-    g_value_set_static_string (val, ygets_q(iarg));
-    GY_DEBUG("GValue is string: \"%s\"\n", ygets_q(iarg));
-    break;
+  case GI_TYPE_TAG_VOID:
   default:
     y_error("Unimplement property GValue type");
   }
