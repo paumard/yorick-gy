@@ -23,25 +23,16 @@ extern gy_init;
     Initialize gy. Normally called only in gy.i.
  */
 
-extern gy_list_namespace;
-/* DOCUMENT gy_list_namespace, NAMESPACE
+extern gy_list;
+/* DOCUMENT gy_list, OBJECT
    
-    List symbols in NAMESPACE.  Beware: the list can contain thousands
-    of entries.
-
-   EXAMPLES:
-    gy_list_namespace, "Gtk"
-    gy_list_namespace, gy.require("Gtk", "3.0")
-    gy_list_namespace, gy.Gtk
+    List symbols in gy stuff OBJECT.
     
-   SEE ALSO: gy
- */
-
-extern gy_list_object;
-/* DOCUMENT gy_list_object, OBJECT
-    List symbols in OBJECT.
    EXAMPLE:
-    gy_list_object, gy.Gtk.Window
+    gy_list, gy.Gtk
+    gy_list, "Gtk"
+    gy_list, gy.Gtk.Window
+    gy_list, gy.Gtk.Window()
    SEE ALSO: gy
  */
 

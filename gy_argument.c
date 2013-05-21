@@ -262,8 +262,10 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 	}
 	break;
       }
-      outObject -> info = info;
-      g_base_info_ref(info);
+      outObject -> info =
+	g_irepository_find_by_gtype(o -> repo,
+				    g_registered_type_info_get_g_type(itrf));
+      g_base_info_ref(outObject->info);
       break;
     default:
       y_errorn("Unimplemented output GIArgument interface type %ld",

@@ -31,23 +31,15 @@ func gyhelloworld_print(wdg, event, userdata) {
 }
 
 func gyhelloworld(glade) {
-  Gtk=gy.require("Gtk", "3.0");
-  noop, Gtk.init_check(0,);
-  gy_setlocale;
+  Gtk=gy_gtk_init();
   if (glade) {
-    require, "pathfun.i";
-    glade_file_name=
-      find_in_path("gyhelloworld.xml",
-                   path=_("./", Y_SITES+"glade/", Y_SITE+"glade/"),
-                   takefirst=1);
     main_window_name="window1";
-    builder = Gtk.Builder.new();
-    noop, builder.add_from_file(glade_file_name);
+    builder = gy_gtk_builder("gyhelloworld.xml");
     win = builder.get_object(main_window_name);
     gy_signal_connect, builder;
   } else {
-    win = Gtk.Window.new(Gtk.WindowType.toplevel);
-    button = Gtk.Button.new_with_label("Hello World!");
+    win = Gtk.Window();
+    button = Gtk.Button(label="Hello World!");
     noop, win.add(button);
     gy_signal_connect, button, "clicked", gyhelloworld_print;
   }

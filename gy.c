@@ -798,6 +798,13 @@ Y_gy_list_object(int argc) {
   }
 }
 
+void
+Y_gy_list(int argc)
+{
+  if (yarg_gy_Object(argc-1)) Y_gy_list_object(argc);
+  else Y_gy_list_namespace(argc);
+}
+
 static gboolean _gy_debug = 0;
 
 gboolean gy_debug() { return _gy_debug; }

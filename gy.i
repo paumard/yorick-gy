@@ -19,8 +19,8 @@
 
 #include "gy0.i"
 
-extern gy;
-/* DOCUMENT gy
+local gy_i;
+/* DOCUMENT #include "gy.i"
 
     gy is a Yorick plug-in around GObject-introspection. It can
     notably be used to create Gtk GUIs from within Yorick.
@@ -57,13 +57,19 @@ extern gy;
     code):
       Gtk = gy.require("Gtk", "3.0");
 
-    You can use gy_list_namespace to list the symbols inside this
+    You can use gy_list to list the symbols inside this
     namespace:
-      gy_list_namespace, Gtk;
-    Objects are typically instanciated using a "new" method:
-      button = gy.Gtk.Button.new();
-    Object members can be listed with gy_list_object:
-      gy_list_object, button;
+      gy_list, Gtk;
+      
+    Although some object classes provide one or several "new()"
+    methods, the normal way is to just call the class as a function,
+    passing properties as keywords:
+      button = gy.Gtk.Button.new_with_label("My Button");
+    is thus equivalent to
+      button = gy.Gtk.Button(label="My Button");
+      
+    Object members can also be listed with gy_list:
+      gy_list, button;
     Callbacks can be connected to objects using gy_signal_connect.
 
     gy simply exposes conforming library content to Yorick. See the
@@ -73,33 +79,28 @@ extern gy;
     
    NOTE CONCERNING GTK:
     As of now, Gtk GUIs are always blocking, meaning you can't use the
-    Yorick prompt whil a GUI is running. To accomodate for this
+    Yorick prompt while a GUI is running. To accomodate for this
     limitation, see gyterm. On the other hand, that means that
     callbacks are called almost synchronously, so applications are
     easier to code.
 
     Please use gy_setlocale() in any public code, else Gtk will set
     LC_NUMERIC the user locale which will break Yorick in countries
-    where the decimal separator is not the English dot.
+    where the decimal separator is not the English dot. gy_gtk_init
+    itself calls gy_setlocale.
 
    EXAMPLE:
-    // Load namespace, checking version
-    Gtk = gy.require("Gtk", "3.0");
-
-    // Initialize Gtk
-    Gtk.init_check(0,);
-
-    // Gtk.init messes with the local, reset at least LC_NUMERIC
-    gy_setlocale;
+    // Load namespace, initialize it, fix locale
+    Gtk = gy_gtk_init();
 
     // Create widget hierarchy
-    win = Gtk.Window.new(Gtk.WindowType.toplevel);
-    button = Gtk.Button.new_with_label("Hello World!");
-    win.add(button);
+    win = Gtk.Window();
+    button = Gtk.Button(label="Hello World!");
+    noop, win.add(button);
 
     // Write a callback
     func hello(widget, event, data) {
-      "\"Hello World!\"";
+      "Hello World!";
     }
 
     // Connect callback to button event
@@ -109,7 +110,34 @@ extern gy;
     // count it among the managed windows, and start Gtk main loop
     gy_gtk_main, win;
     
-   SEE ALSO: gyterm, gycmap, gywindow
+   SEE ALSO: gy, gyterm, gycmap, gywindow
+ */
+
+extern gy;
+/* DOCUMENT gy
+
+    gy is a Yorick plug-in around GObject-introspection. It can
+    notably be used to create Gtk GUIs from within Yorick. See gy_i
+    for an introduction.
+
+    The gy object itself gives access to the gobject introspection
+    repository. It serves only one purpose: loading so called
+    "namespace", which can be done very simply by dereferencing gy:
+      Gtk = gy.Gtk;
+    It is safer to use the "require" method below though.
+
+   METHODS:
+    require: allows loading a specific version of a namespace:
+                  Gtk = gy.require("Gtk", "3.0");
+             only one given version of a namespace can be loaded at a
+             given time.
+             
+    require_private, get_search_path, prepend_search_path,
+    is_registered, get_version, enumerate_versions: see C
+    documentation for g_irepository_<method>.
+
+   SEE ALSO: gy_i, gy_init, gy_list
+    
  */
 gy=gy_init();
 
@@ -184,7 +212,7 @@ func gy_gtk_ycmd(noexpander)
     gyterm. Unless NOEXPANDER is specified and evaluates to true, the
     Gtk entry is put in an expander.
 
-   SEE ALSO: gy, gyentry, gy_gtk_ycmd_connect, gy_gtk_ywindow
+   SEE ALSO: gy_i, gyentry, gy_gtk_ycmd_connect, gy_gtk_ywindow
  */
 {
   Gtk=gy.require("Gtk", "3.0");
@@ -207,7 +235,7 @@ func gy_gtk_ycmd_connect(widget) {
     entry=gy.Gtk.Entry.new();
     gy_gtk_ycmd_connect, entry;
 
-   SEE ALSO: gy, gyterm, gy_gtk_window_suspend, gy_gtk_main
+   SEE ALSO: gy_i, gyterm, gy_gtk_window_suspend, gy_gtk_main
  */
   gy_signal_connect, widget, "key-press-event", __gyterm_key_pressed;
   noop, widget.set_placeholder_text("Yorick command");
@@ -228,7 +256,7 @@ func gy_gtk_window_suspend(win)
     win=gy.Gtk.Window.new(gy.Gtk.WindowType.toplevel);
     gy_gtk_main, win;
 
-   SEE ALSO: gy, gyterm, gy_gtk_ycmd_connect
+   SEE ALSO: gy_i, gyterm, gy_gtk_ycmd_connect
  */
 {
   gy_signal_connect, win, "delete-event", gy_gtk_suspend;
@@ -270,7 +298,7 @@ func gyterm(cmd)
      If you want to embed gyterm in another GUI, see
      gy_gtk_ycmd_connect.
 
-   SEE ALSO: gy, gy_gtk_ycmd_connect, gycmap, gywindow
+   SEE ALSO: gy_i, gy_gtk_ycmd_connect, gycmap, gywindow
  */
 {
   extern __gyterm_initialized, __gyterm_win;
@@ -523,7 +551,7 @@ func gy_gtk_ywindow_reinit(yid, dpi=, style=)
      instance to change DPI or STYLE.
 
    KEYWORDS: dpi, style.
-   SEE ALSO: gy, gywindow, gy_gtk_ywindow
+   SEE ALSO: gy_i, gywindow, gy_gtk_ywindow
  */
 {
   cur = __gywindow_find_by_yid(yid);
@@ -746,7 +774,7 @@ func gy_gtk_idleonce(void)
      and restarts the Gtk main loop. You should call it from Gtk
      applications each time the graphics should be updated.
 
-   SEE ALSO: gy, gyterm, gywindow
+   SEE ALSO: gy_i, gyterm, gywindow
  */
 {
   noop, gy.Gtk.main_quit();
@@ -770,7 +798,7 @@ func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=, on_realize=)
     da:  the gy.Gtk.DrawingArea in which the yorick window will be embedded.
     xylabel: gy.Gtk.Entry widget in which to report mouse motion.
 
-   SEE ALSO: gy, gywindow, gy_gtk_ywindow
+   SEE ALSO: gy_i, gywindow, gy_gtk_ywindow
  */
 {
   extern __gywindow;
@@ -806,7 +834,7 @@ func gy_gtk_ywindow_mouse_handler(yid, handler)
               the button press and release events, button is the
               button which was pressed, flags is limits()(5).
       
-   SEE ALSO: gy, gy_gtk_ywindow, gywindow, mouse, limits
+   SEE ALSO: gy_i, gy_gtk_ywindow, gywindow, mouse, limits
    
  */
 {
@@ -835,7 +863,7 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=, on_realize=)
      If YID is nil, a new ID is taken and YID is set to this value.
 
    KEYWORDS: dpi, width, height, style.
-   SEE ALSO: gy, gywindow, gyterm, gycmap, gy_gtk_ywindow_connect
+   SEE ALSO: gy_i, gywindow, gyterm, gycmap, gy_gtk_ywindow_connect
  */
 {
   extern __gywindow;
@@ -1246,7 +1274,7 @@ func gy_xid(wdg)
      }
      gy_signal_connect, ywin, "event", on_ywin_event;
      
-   SEE ALSO: gy, gy_gdk_window
+   SEE ALSO: gy_i, gy_gdk_window
  */
 
 {
