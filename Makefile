@@ -1,9 +1,9 @@
 # these values filled in by    yorick -batch make.i
-Y_MAKEDIR=
-Y_EXE=
+Y_MAKEDIR=/usr/lib/yorick
+Y_EXE=/usr/lib/yorick/bin/yorick
 Y_EXE_PKGS=
-Y_EXE_HOME=
-Y_EXE_SITE=
+Y_EXE_HOME=/usr/lib/yorick
+Y_EXE_SITE=/usr/lib/yorick
 Y_HOME_PKG=
 
 # ----------------------------------------------------- optimization flags
@@ -88,3 +88,8 @@ install::
 	$(YNSTALL) $(CMAP_PNG) $(DEST_Y_SITE)/data
 	mkdir -p $(DEST_PKG_INSTALLED_DIR)
 	cp gy.info $(DEST_PKG_INSTALLED_DIR)
+
+uninstall::
+	-rm -f $(DEST_PKG_INSTALLED_DIR)/gy.info
+	for file in $(CMAP_PNG) ; do rm -f  $(DEST_Y_SITE)/data/$$file; done;
+	-rm -f $(DEST_Y_SITE)/glade/gycmap.xml
