@@ -1,0 +1,23 @@
+Package: gy
+Kind: plugin
+Version: 0.0
+Revision: 1
+Description: GObject introspection and Gtk widgets
+License: GPLv3
+Author: Thibaut Paumard
+Maintainer: Thibaut Paumard <paumard@users.sourceforge.net>
+OS: architecture independant
+Depends: yorick(>=2.2.02)
+Source: https://github.com/paumard/yorick-gy
+Source-MD5: 
+Source-Directory: contrib/
+DocFiles: README GPL-3
+Homepage: https://github.com/paumard/yorick-gy
+DescDetail: <<
+This plug-in allows using GObject-introspection.
+<<
+DescUsage: <<
+See gyhelloworld.i for a demo.
+<<
+DescPort: <<
+<<

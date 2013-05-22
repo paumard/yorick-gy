@@ -81,6 +81,10 @@ CMAP_PNG = cbc-div-cmap.png  cb-div-cmap.png   cb-seq-cmap.png  gmt-cmap.png \
            msh-cmap.png cbc-seq-cmap.png  cb-qual-cmap.png  gist-cmap.png \
            gpl-cmap.png  mpl-cmap.png
 
+DEST_PKG_INSTALLED_DIR=$(DEST_Y_SITE)/packages/installed
+
 install::
 	$(YNSTALL) gycmap.xml $(DEST_Y_SITE)/glade
 	$(YNSTALL) $(CMAP_PNG) $(DEST_Y_SITE)/data
+	mkdir -p $(DEST_PKG_INSTALLED_DIR)
+	cp gy.info $(DEST_PKG_INSTALLED_DIR)
