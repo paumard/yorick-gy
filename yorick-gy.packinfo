@@ -1,0 +1,6 @@
+:newsubsection
+yorick-gy: gobject-introspection
+
+:gy
+access gobject-introspection libraries, in particular Gtk
+
