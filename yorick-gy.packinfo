@@ -2,5 +2,9 @@
 yorick-gy: gobject-introspection
 
 :gy
-access gobject-introspection libraries, in particular Gtk
+access gobject-introspection libraries
+
+:gy_gtk
+convenience functions for writing Gtk-based graphical user interfaces
+
 

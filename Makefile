@@ -38,7 +38,7 @@ PKG_CLEAN=
 # autoload file for this package, if any
 PKG_I_START=
 # non-pkg.i include files for this package, if any
-PKG_I_EXTRA=gy.i gyhelloworld.i
+PKG_I_EXTRA=gy.i
 
 # -------------------------------- standard targets and rules (in Makepkg)
 
