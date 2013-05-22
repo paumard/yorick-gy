@@ -18,6 +18,7 @@
  */
 
 #include "gy.h"
+#include "ctype.h"
 
 /// TYPELIB
 
@@ -130,6 +131,14 @@ void gy_Object_print(void *obj) {
   y_print(g_base_info_get_namespace (o->info), 0);
 }
 
+char *
+p_strtolower(const char * in)
+{
+  char * cur, * out = p_strcpy(in);
+  for (cur=out; *cur; ++cur) *cur=tolower(*cur);
+  return out;
+}
+
 void
 gy_Object_extract(void *obj, char * name)
 {
@@ -144,14 +153,21 @@ gy_Object_extract(void *obj, char * name)
     GIValueInfo * ci ;
     gint i;
     gboolean tfound=0;
+    char * name_dn = p_strtolower(name);
+    if (!strcmp(name, name_dn)) {
+      p_free(name_dn);
+      name_dn=NULL;
+    }
     for (i=0; i<nc; ++i) {
       ci = g_enum_info_get_value(o->info, i);
-      if (!strcmp(g_base_info_get_name (ci), name)) {
+      if (!strcmp(g_base_info_get_name (ci), name) ||
+	  (name_dn && !strcmp(g_base_info_get_name (ci), name_dn)) ) {
 	wtype=g_value_info_get_value (ci);
 	tfound=1;
 	break;
       }
     }
+    p_free(name_dn);
     if (tfound) ypush_long(wtype);
     else y_errorq("No such enum value: %s", name);
     return;
