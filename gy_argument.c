@@ -277,8 +277,9 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
     outObject = ypush_gy_Object();
     outObject -> repo= o -> repo;
     outObject -> object = arg -> v_pointer;
-    //outObject -> info = info;
-    //g_base_info_ref(info);
+    outObject -> info = info;
+    g_base_info_ref(info);
+    //printf("%s\n", g_base_info_get_name(info));
     break;
   default:
     y_errorq("Unimplemented output GIArgument type: %s",

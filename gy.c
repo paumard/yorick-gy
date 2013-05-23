@@ -146,6 +146,54 @@ gy_Object_extract(void *obj, char * name)
 
   if (!o->info) y_error("Object has no type information");
   
+  if (GI_IS_TYPE_INFO(o->info)) {
+    GITypeTag type = g_type_info_get_tag(o->info);
+    switch(type) {
+    case GI_TYPE_TAG_GLIST:
+    case GI_TYPE_TAG_GSLIST:
+      {
+	int action = 0;
+#define GYLIST_ACTION_DATA 1
+#define GYLIST_ACTION_NEXT 2
+#define GYLIST_ACTION_PREV 3
+	if (!strcmp(name,"data")) action=GYLIST_ACTION_DATA;
+	else if (!strcmp(name, "next")) action =GYLIST_ACTION_NEXT;
+	else if (!strcmp(name, "prev")) action =GYLIST_ACTION_PREV;
+	else y_errorq("Unkown action for G(S)List: %s", name);
+	
+	if (action == GYLIST_ACTION_PREV && type == GI_TYPE_TAG_GSLIST)
+	  y_error("Single-linked list: no prev");
+
+	if ( (action == GYLIST_ACTION_NEXT && !((GList*) o->object) -> next) ||
+	     (action == GYLIST_ACTION_PREV && !((GList*) o->object) -> prev) )
+	  ypush_nil();
+
+	GITypeInfo * itrf = g_type_info_get_interface(g_type_info_get_param_type(o->info, 0));
+
+	gy_Object * out = ypush_gy_Object();
+	out -> repo = o -> repo;
+	if (action == GYLIST_ACTION_DATA) {
+	  out -> info = itrf;
+	  out -> object = ((GList*) o->object) -> data;
+	  if (g_base_info_get_type (itrf) == GI_INFO_TYPE_OBJECT) {
+	    g_object_ref(out -> object);
+	  }
+	} else {
+	  out -> info = o -> info;
+	  if (action==GYLIST_ACTION_NEXT)
+	    out -> object = ((GList*) o->object) -> next;
+	  else if (action==GYLIST_ACTION_PREV)
+	    out -> object = ((GList*) o->object) -> prev;
+	}
+	g_base_info_ref(out -> info);
+	return;
+      }
+      break;
+    default:
+      y_error("Don't know how to extract members from that kind of objects");
+    } 
+  }
+
   if (GI_IS_ENUM_INFO(o->info)) {
     
     gint64 wtype=-1;
