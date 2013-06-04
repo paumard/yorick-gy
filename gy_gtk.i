@@ -83,7 +83,8 @@ local gy_gtk_i;
     
    SEE ALSO: gy_i, gyterm, gycmap, gywindow
  */
-func __gyterm_init(void) {
+func __gyterm_init
+{
   require,  "string.i";
   extern __gyterm_initialized, __gyterm_win;
   Gtk=gy.require("Gtk");
@@ -97,7 +98,8 @@ func __gyterm_init(void) {
   __gyterm_initialized=1;
 }  
 
-func __gyterm_idler(void) {
+func __gyterm_idler
+{
   noop, gy.Gtk.main();
 }
 
@@ -549,6 +551,7 @@ func __gywindow_event_handler(widget, event, udata) {
     noop, cur.sw.set_size_request(-1,-1);
     noop, cur.hadjustment.set_value(xcenter-cur.hadjustment.get_page_size()/2);
     noop, cur.vadjustment.set_value(xcenter-cur.vadjustment.get_page_size()/2);
+    if (cur.on_configure) cur.on_configure;
     return;
   }
 
@@ -622,6 +625,7 @@ func __gywindow_event_handler(widget, event, udata) {
 
   if (type == EventType.button_release) {
 
+    lm = limits();
     flags=long(lm(5));
 
     if (is_func(cur.mouse_handler)) {
@@ -724,7 +728,8 @@ func gy_gtk_idleonce(void)
 
 if (is_void(__gywindow)) __gywindow=save();
 
-func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=, on_realize=)
+func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=,
+                            on_realize=, on_configure=)
 /* DOCUMENT gy_gtk_ywindow_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
@@ -752,7 +757,8 @@ func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=, on_realize=)
   gy_signal_connect, da, "draw", __gywindow_redraw;
   save, __gywindow, "", save(yid, xid=[], win, da, xylabel,
                              realized=0, dpi=dpi, style=style,
-                             mouse_handler=[], on_realize=on_realize);
+                             mouse_handler=[],
+                             on_realize=on_realize, on_configure=on_configure);
 }
 
 
@@ -787,7 +793,8 @@ func __gywindow_redraw(widg, event, userdata) {
   return 1;
 }
 
-func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=, on_realize=)
+func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
+                    on_realize=, on_configure=)
 /* DOCUMENT widget = gy_gtk_ywindow(yid)
 
      Initialize a Gtk widget embedding Yorick window number YID. The
@@ -832,7 +839,7 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=, on_realize=)
   noop, tmp.add(da);
 
   gy_gtk_ywindow_connect, yid, win, da, xylabel, dpi=dpi, style=style,
-    on_realize=on_realize;
+    on_realize=on_realize, on_configure=on_configure;
 
   return box;
 }
@@ -938,7 +945,9 @@ func __gywindow_save(wdg, data)
   return 1;
 }
 
-func __gywindow_init(&yid, dpi=, width=, height=, style=, on_realize=) {
+func __gywindow_init(&yid, dpi=, width=, height=, style=,
+                     on_realize=, on_configure=)
+{
   extern __gywindow, adj;
   if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
@@ -951,9 +960,10 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=, on_realize=) {
   box=Gtk.Box.new(Gtk.Orientation.vertical, 0);
   noop, win.add(box);
 
-  noop, box.pack_start(gy_gtk_ywindow(yid,
-                                      dpi=dpi, width=width, height=height,
-                                      style=style, on_realize=on_realize),
+  noop, box.pack_start(gy_gtk_ywindow
+                       (yid,
+                        dpi=dpi, width=width, height=height, style=style,
+                        on_realize=on_realize, on_configure=on_configure),
                        1, 1, 0);
 
   cur = __gywindow_find_by_yid(yid);
@@ -1136,7 +1146,8 @@ func gy_gtk_ywindow_free_id(void)
   return ids(0)-1;
 }
 
-func gywindow(&yid, freeid=, dpi=, width=, height=, style=, on_realize=)
+func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
+              on_realize=, on_configure=)
 /* DOCUMENT gywindow, yid
 
     When the Gtk main loop is running, the Yorick main loop is
@@ -1169,7 +1180,7 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=, on_realize=)
       winkill, yid;
       __gywindow_init, yid,
         dpi=dpi, width=width, height=height, style=style,
-        on_realize=on_realize;
+        on_realize=on_realize, on_configure=on_configure;
     }
   gy_gtk_main, __gywindow_find_by_yid(yid).win;
 }
