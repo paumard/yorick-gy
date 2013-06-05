@@ -100,7 +100,7 @@ func __gyterm_init
 
 func __gyterm_idler
 {
-  noop, gy.Gtk.main();
+  //noop, gy.Gtk.main();
 }
 
 if (is_void(__gyterm_history_size)) __gyterm_history_size=100;
@@ -141,7 +141,7 @@ func __gyterm_key_pressed(widget, event, udata) {
     __gyterm_max=min(numberof(__gyterm_history), __gyterm_max+1);
     __gyterm_idx=__gyterm_cur;
     write, format="> %s\n", cmd;
-    include, strchar("if (catch(-1)) {gyerror, catch_message; return;} "+cmd), 1;
+    include, strchar(cmd), 1;
     return 1;
   }
 
@@ -160,12 +160,14 @@ func gy_gtk_ycmd(noexpander)
 {
   Gtk=gy.require("Gtk", "3.0");
   entry = Gtk.Entry.new();
+  noop, entry.set_vexpand(0);
   gy_gtk_ycmd_connect, entry;
   if (noexpander) return entry;
   exp = Gtk.Expander.new("<small><span style=\"italic\" size=\"smaller\">Yorick command</span></small>");
-  exp.add(entry);
-  exp.set_use_markup(1);
-  exp.set_resize_toplevel(1);
+  noop, exp.add(entry);
+  noop, exp.set_use_markup(1);
+  noop, exp.set_resize_toplevel(1);
+  noop, exp.set_vexpand(0);
   return exp;
 }
 
@@ -223,7 +225,7 @@ func gy_gtk_suspend(widget, event, udata)
   __gygtk_windows(2,idx) = 0;
   noop, widget.hide();
   if (noneof(__gygtk_windows(2,))) {
-    noop, gy.Gtk.main_quit();
+    //noop, gy.Gtk.main_quit();
     if (is_func(gy_gtk_on_main_quit)) gy_gtk_on_main_quit;
   }
   return 1;
@@ -443,6 +445,7 @@ func gycmap(callback)
 func __gywindow_on_error (void) {
   extern __gywindow_device;
   noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
+  __gy_gtk_on_error;
 }
 
 func gy_gtk_allowgrab(allow) {
@@ -540,7 +543,7 @@ func __gywindow_event_handler(widget, event, udata) {
     noop, cur.hadjustment.set_value(xcenter-cur.hadjustment.get_page_size()/2);
     noop, cur.vadjustment.set_value(xcenter-cur.vadjustment.get_page_size()/2);
     if (cur.on_realize) cur.on_realize;
-    if (Gtk.main_level()) gy_gtk_idleonce;
+    //if (Gtk.main_level()) gy_gtk_idleonce;
     return;
   }
 
@@ -707,7 +710,7 @@ func gy_gtk_main(win)
   if (__gygtk_windows(2,idx)) return;
   __gygtk_windows(2,idx)=1;
   noop, win.show_all();
-  if (sum(__gygtk_windows(2,))==1) noop, gy.Gtk.main();
+  //if (sum(__gygtk_windows(2,))==1) noop, gy.Gtk.main();
 }
 
 func gy_gtk_idleonce(void)
@@ -722,8 +725,8 @@ func gy_gtk_idleonce(void)
    SEE ALSO: gy_i, gyterm, gywindow
  */
 {
-  noop, gy.Gtk.main_quit();
-  set_idler, __gyterm_idler;
+  //noop, gy.Gtk.main_quit();
+  //set_idler, __gyterm_idler;
 }
 
 if (is_void(__gywindow)) __gywindow=save();
@@ -1273,3 +1276,22 @@ func gy_gtk_init(argv)
   if (!ret) error, "Gtk initialization failed";
   return Gtk;
 }
+
+func __gy_gtk_idler
+{
+  while (gy.Gtk.events_pending ())  noop, gy.Gtk.main_iteration ();
+  if (__gy_gtk_set_idler) after, 0.1, __gy_gtk_idler;
+  maybe_prompt;
+}
+
+
+func __gy_gtk_on_error
+{
+  gyerror, catch_message;
+  after, 0.1, __gy_gtk_idler;
+}
+
+after_error = __gy_gtk_on_error;
+
+__gy_gtk_set_idler=1;
+after, 0.1, __gy_gtk_idler;

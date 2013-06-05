@@ -77,6 +77,7 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     case GI_INFO_TYPE_CALLBACK:
       arg->v_pointer=yget_gy_Object(iarg)->object;
       break;
+      //case GI_INFO_TYPE_INTERFACE:
     case GI_INFO_TYPE_STRUCT:
       {
 	GType g_type=
@@ -236,6 +237,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
 		 g_enum_info_get_storage_type (itrf));
       }
       break;
+    case GI_INFO_TYPE_INTERFACE:
     case GI_INFO_TYPE_STRUCT:
     case GI_INFO_TYPE_OBJECT:
       if (!arg -> v_pointer) ypush_nil();
