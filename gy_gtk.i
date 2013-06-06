@@ -98,11 +98,6 @@ func __gyterm_init
   __gyterm_initialized=1;
 }  
 
-func __gyterm_idler
-{
-  //noop, gy.Gtk.main();
-}
-
 if (is_void(__gyterm_history_size)) __gyterm_history_size=100;
 __gyterm_history=array(string, __gyterm_history_size);
 __gyterm_idx=__gyterm_cur=1;
@@ -442,17 +437,21 @@ func gycmap(callback)
 
 //// gywindow: a yorick window wrapper
 
-func __gywindow_on_error (void) {
+func __gywindow_on_error
+{
   extern __gywindow_device;
+  if (is_void(__gywindow_device)) return;
   noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
-  __gy_gtk_on_error;
+  __gywindow_device=[];
 }
 
 func gy_gtk_allowgrab(allow) {
   extern __gy_gtk_allowgrab;
   __gy_gtk_allowgrab=allow;
-  if (!allow && !is_void(__gywindow_device))
+  if (!allow && !is_void(__gywindow_device)) {
     noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
+    __gywindow_device = [];
+  }
 }
 gy_gtk_allowgrab, 1;
 
@@ -519,8 +518,6 @@ func __gywindow_event_handler(widget, event, udata) {
   extern __gywindow, __gywindow_xs0, __gywindow_ys0, __gywindow_device;
   local curwin, win;
   
-  after_error=__gywindow_on_error;
-
   cur = __gywindow_find_by_xid(gy_gtk_xid(widget));
   if (is_void(cur)) return;
 
@@ -557,6 +554,8 @@ func __gywindow_event_handler(widget, event, udata) {
     if (cur.on_configure) cur.on_configure;
     return;
   }
+
+  if (!cur.grab) return;
 
   pix2ndc=72.27/cur.dpi*0.0013;
   
@@ -713,26 +712,10 @@ func gy_gtk_main(win)
   //if (sum(__gygtk_windows(2,))==1) noop, gy.Gtk.main();
 }
 
-func gy_gtk_idleonce(void)
-/* DOCUMENT gygtk_idleonce
-
-     Display in Yorick graphic windows is updated only when Yorick is
-     idle, which never occurs when a gy.Gtk.main loop is running. This
-     procedure lets Yorick reach the idle state to update its graphics
-     and restarts the Gtk main loop. You should call it from Gtk
-     applications each time the graphics should be updated.
-
-   SEE ALSO: gy_i, gyterm, gywindow
- */
-{
-  //noop, gy.Gtk.main_quit();
-  //set_idler, __gyterm_idler;
-}
-
 if (is_void(__gywindow)) __gywindow=save();
 
 func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=,
-                            on_realize=, on_configure=)
+                            on_realize=, on_configure=, grab=)
 /* DOCUMENT gy_gtk_ywindow_connect, yid, win, da, xylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
@@ -756,12 +739,10 @@ func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=,
   
   if (is_void(dpi)) dpi=75;
   gy_signal_connect, da, "event", __gywindow_event_handler;
-  gy_signal_connect, da, "configure-event", __gywindow_redraw;
-  gy_signal_connect, da, "draw", __gywindow_redraw;
   save, __gywindow, "", save(yid, xid=[], win, da, xylabel,
-                             realized=0, dpi=dpi, style=style,
+                             realized=0, dpi, style,
                              mouse_handler=[],
-                             on_realize=on_realize, on_configure=on_configure);
+                             on_realize, on_configure, grab);
 }
 
 
@@ -791,13 +772,8 @@ func gy_gtk_ywindow_mouse_handler(yid, handler)
   save, __gywindow_find_by_yid(yid), mouse_handler=handler;
 }
 
-func __gywindow_redraw(widg, event, userdata) {
-  gy_gtk_idleonce;
-  return 1;
-}
-
 func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
-                    on_realize=, on_configure=)
+                    on_realize=, on_configure=, grab=)
 /* DOCUMENT widget = gy_gtk_ywindow(yid)
 
      Initialize a Gtk widget embedding Yorick window number YID. The
@@ -812,6 +788,8 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
  */
 {
   extern __gywindow;
+  local xylabel;
+  
   if (is_void(dpi)) dpi=75;
   //if (is_void(width)) width=long(6*dpi);
   //if (is_void(height)) height=long(6*dpi);
@@ -827,7 +805,6 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
   xylabel=Gtk.Label.new("");
   noop, box2.pack_start(xylabel, 0, 0, 0);
 
-
   sw = Gtk.ScrolledWindow.new(,);
   if (!is_void(width) && !is_void(height))
     noop, sw.set_size_request(width,height); 
@@ -842,7 +819,7 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
   noop, tmp.add(da);
 
   gy_gtk_ywindow_connect, yid, win, da, xylabel, dpi=dpi, style=style,
-    on_realize=on_realize, on_configure=on_configure;
+    on_realize=on_realize, on_configure=on_configure, grab=grab;
 
   return box;
 }
@@ -1277,21 +1254,54 @@ func gy_gtk_init(argv)
   return Gtk;
 }
 
-func __gy_gtk_idler
+extern gy_gtk_idler_period;
+/* DOCUMENT gy_gtk_idler_period
+    gy_gtk_idler repeatedly reschedules using after for running every
+    gy_gtk_idler_period seconds. Default: 0.05. You may set this
+    variable at any time to change the frequency of the loop.
+   SEE ALSO: gy_gtk_idler
+ */
+if (!is_numerical(gy_gtk_idler_period)) gy_gtk_idler_period = 0.05;
+
+func gy_gtk_idler (start_stop)
+/* DOCUMENT gy_gtk_idler, start_stop
+   
+    Start or stop the gy Gtk idler, which takes care of processing the
+    Gtk events. While the idler is in place, it runs every
+    gy_gtk_idler_period seconds using after().
+
+    Errors may break the idling loop (although gy_gtk.i installs an
+    error handler which re-enables the loop). If your Gtk interface
+    appears to be frozen whereas Yorick itself is not, try
+      gy_gtk_idler, 1
+
+   PARAMETER
+    start_stop: 1 to start the loop, 0 to stop it.
+
+   EXTERNAL VARIABLES:
+    gy_gtk_idler_period, __gy_gtk_set_idler
+
+   SEE ALSO: gy_gtk_i, gy_gtk_idler_period, after
+ */
 {
+  extern __gy_gtk_set_idler, gy_gtk_idler_period;
+  if (!is_void(start_stop)) __gy_gtk_set_idler=start_stop;
+  if (!__gy_gtk_set_idler) return;
   while (gy.Gtk.events_pending ())  noop, gy.Gtk.main_iteration ();
-  if (__gy_gtk_set_idler) after, 0.1, __gy_gtk_idler;
+  if (!is_void( (psn=current_mouse()) )  && !is_void( (cur=__gywindow_find_by_yid(psn(0))) )) {
+    noop, cur.xylabel.set_text(swrite(format=" System: %d ( % 10g,  % 10g)", long(psn(3)), psn(1), psn(2)));
+  }
+  after, gy_gtk_idler_period, gy_gtk_idler;
   maybe_prompt;
 }
 
 
 func __gy_gtk_on_error
 {
+  __gywindow_on_error;
   gyerror, catch_message;
-  after, 0.1, __gy_gtk_idler;
+  gy_gtk_idler, 1;
 }
 
 after_error = __gy_gtk_on_error;
-
-__gy_gtk_set_idler=1;
-after, 0.1, __gy_gtk_idler;
+gy_gtk_idler, 1;
