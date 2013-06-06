@@ -128,7 +128,6 @@ func __gyterm_key_pressed(widget, event, udata) {
   }
 
   if (keyval==Gdk.KEY_Return) {
-    gy_gtk_idleonce;
     cmd=widget.get_text();
     noop, widget.set_text("");
     __gyterm_history(__gyterm_cur)=cmd;
@@ -540,7 +539,6 @@ func __gywindow_event_handler(widget, event, udata) {
     noop, cur.hadjustment.set_value(xcenter-cur.hadjustment.get_page_size()/2);
     noop, cur.vadjustment.set_value(xcenter-cur.vadjustment.get_page_size()/2);
     if (cur.on_realize) cur.on_realize;
-    //if (Gtk.main_level()) gy_gtk_idleonce;
     return;
   }
 
@@ -664,7 +662,6 @@ func __gywindow_event_handler(widget, event, udata) {
       range, lm2(3), lm2(4);
     }
     
-    gy_gtk_idleonce;
   }
 
   if (!is_void(curwin) && curwin>=0) window, curwin;
@@ -677,7 +674,9 @@ func __gywindow_event_handler(widget, event, udata) {
       noop, __gywindow_device.ungrab(Gdk.CURRENT_TIME);
       return;
     }
-    noop, cur.xylabel.set_text("("+pr1(xs)+", "+pr1(ys)+")");
+    noop, cur.slabel.set_text("?");
+    noop, cur.xlabel.set_text(swrite(xs));
+    noop, cur.ylabel.set_text(swrite(ys));
     return;
   }
   
@@ -714,9 +713,9 @@ func gy_gtk_main(win)
 
 if (is_void(__gywindow)) __gywindow=save();
 
-func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=,
+func gy_gtk_ywindow_connect(&yid, win, da, slabel, xlabel, ylabel, dpi=, style=,
                             on_realize=, on_configure=, grab=)
-/* DOCUMENT gy_gtk_ywindow_connect, yid, win, da, xylabel
+/* DOCUMENT gy_gtk_ywindow_connect, yid, win, da, slabel, xlabel, ylabel
    
     Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
     gywindow for a trivial example). For a lower level function, see
@@ -728,7 +727,7 @@ func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=,
     yid: Yorick window ID to embed
     win: the toplevel gy.Gtk.Window widget
     da:  the gy.Gtk.DrawingArea in which the yorick window will be embedded.
-    xylabel: gy.Gtk.Entry widget in which to report mouse motion.
+    s|x|ylabel: gy.Gtk.Label widget in which to report mouse motion.
 
    SEE ALSO: gy_i, gywindow, gy_gtk_ywindow
  */
@@ -739,7 +738,7 @@ func gy_gtk_ywindow_connect(&yid, win, da, xylabel, dpi=, style=,
   
   if (is_void(dpi)) dpi=75;
   gy_signal_connect, da, "event", __gywindow_event_handler;
-  save, __gywindow, "", save(yid, xid=[], win, da, xylabel,
+  save, __gywindow, "", save(yid, xid=[], win, da, slabel, xlabel, ylabel,
                              realized=0, dpi, style,
                              mouse_handler=[],
                              on_realize, on_configure, grab);
@@ -788,7 +787,6 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
  */
 {
   extern __gywindow;
-  local xylabel;
   
   if (is_void(dpi)) dpi=75;
   //if (is_void(width)) width=long(6*dpi);
@@ -802,8 +800,22 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
   box2=Gtk.Box.new(Gtk.Orientation.horizontal, 0);
   noop, box.pack_start(box2, 0,0,0);
 
-  xylabel=Gtk.Label.new("");
-  noop, box2.pack_start(xylabel, 0, 0, 0);
+  noop, box2.pack_start(Gtk.Label(label="System: "),0,0,0);
+
+  slabel=Gtk.Label(label="0", max_width_chars=1, width_chars=1);
+  noop, box2.pack_start(slabel, 0, 0, 0);
+
+  noop, box2.pack_start(Gtk.Label(label="( "),0,0,0);
+
+  xlabel=Gtk.Label(label="", max_width_chars=15, width_chars=15);
+  noop, box2.pack_start(xlabel, 0, 0, 0);
+
+  noop, box2.pack_start(Gtk.Label(label=", "),0,0,0);
+
+  ylabel=Gtk.Label(label="", max_width_chars=15, width_chars=15);
+  noop, box2.pack_start(ylabel, 0, 0, 0);
+
+  noop, box2.pack_start(Gtk.Label(label=")"),0,0,0);
 
   sw = Gtk.ScrolledWindow.new(,);
   if (!is_void(width) && !is_void(height))
@@ -818,7 +830,7 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
   noop, da.set_size_request(long(8.5*dpi),long(11*dpi));
   noop, tmp.add(da);
 
-  gy_gtk_ywindow_connect, yid, win, da, xylabel, dpi=dpi, style=style,
+  gy_gtk_ywindow_connect, yid, win, da, slabel, xlabel, ylabel, dpi=dpi, style=style,
     on_realize=on_realize, on_configure=on_configure, grab=grab;
 
   return box;
@@ -1195,7 +1207,6 @@ func gy_gtk_xid(wdg)
      builder=gy.Gtk.Builder.new(glade_file);
      ywin = builder.get_object(yorick_widget_name);
      func on_ywin_event(void) {
-       gy_gtk_idleonce;
        window, parent=gy_gtk_xid(ywin);
      }
      gy_signal_connect, ywin, "event", on_ywin_event;
@@ -1289,7 +1300,9 @@ func gy_gtk_idler (start_stop)
   if (!__gy_gtk_set_idler) return;
   while (gy.Gtk.events_pending ())  noop, gy.Gtk.main_iteration ();
   if (!is_void( (psn=current_mouse()) )  && !is_void( (cur=__gywindow_find_by_yid(psn(0))) )) {
-    noop, cur.xylabel.set_text(swrite(format=" System: %d ( % 10g,  % 10g)", long(psn(3)), psn(1), psn(2)));
+    noop, cur.slabel.set_text(swrite(long(psn(3))));
+    noop, cur.xlabel.set_text(swrite(psn(1)));
+    noop, cur.ylabel.set_text(swrite(psn(2)));
   }
   after, gy_gtk_idler_period, gy_gtk_idler;
   maybe_prompt;

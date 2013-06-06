@@ -408,7 +408,6 @@ gy_Object_eval(void *obj, int argc)
 	  GIPropertyInfo * cur;
 	  GITypeInfo * ti;
 
-	  gchar * name =NULL;
 	  for (p=0; p<n_parameters; ++p) {
 	    index=yarg_key(iarg);
 	    GY_DEBUG("index=%ld\n", index);
@@ -416,7 +415,8 @@ gy_Object_eval(void *obj, int argc)
 	    else parameters[p].name=yfind_name(index);
 
 	    cur = gy_base_info_find_property_info(o->info, parameters[p].name);
-	    if (!cur) y_errorq("No such porperty in object: \"%s\"", name);
+	    GY_DEBUG("Property info:%p\n", cur);
+	    if (!cur) y_errorq("No such porperty in object: \"%s\"", parameters[p].name);
 	    --iarg;
 	    GY_DEBUG("property name=\"%s\"\n", parameters[p].name);
 	    ti  = g_property_info_get_type(cur);
