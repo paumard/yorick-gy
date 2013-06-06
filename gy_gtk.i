@@ -45,25 +45,19 @@ local gy_gtk_i;
     (indeed, gyterm *is* embedded in both gycmap and gywindow). See
     gy_gtk_ycmd and gy_gtk_ywindow.
 
-   NOTE:
-    As of now, Gtk GUIs are always blocking, meaning you can't use the
-    Yorick prompt while a GUI is running. To accomodate for this
-    limitation, see gyterm. On the other hand, that means that
-    callbacks are called almost synchronously, so applications are
-    easier to code.
-
-    Please use gy_setlocale() in any public code, else Gtk will set
-    LC_NUMERIC the user locale which will break Yorick in countries
-    where the decimal separator is not the English dot. gy_gtk_init
-    itself calls gy_setlocale.
+   SIDE EFFECTS:
+    #include "gy_gtk.i" has the following side effects:
+     - gy_gtk_idler() runs repeatedly using adter(). Some functions
+       (such as mouse()) cannot run as long as this loop is running.
+     - after_error is set to a function which redirects errors to a
+       dialog and makes some clean-up.
+     - the users locale is set, excluding LC_NUMERIC, using
+       gy_setlocale.
 
    EXAMPLE:
     The gy source code comes with a few example scripts. Here comes a
     basic, commented helloworld:
     
-    // Load namespace, initialize it, fix locale
-    Gtk = gy_gtk_init();
-
     // Create widget hierarchy
     win = Gtk.Window();
     button = Gtk.Button(label="Hello World!");
@@ -77,19 +71,26 @@ local gy_gtk_i;
     // Connect callback to button event
     gy_signal_connect, button, "clicked", hello;
 
-    // Connect standard "delete" event to window, show window,
-    // count it among the managed windows, and start Gtk main loop
-    gy_gtk_main, win;
+    // Show window
+    noop, win.show_all();
     
    SEE ALSO: gy_i, gyterm, gycmap, gywindow
  */
+
+extern Gtk, Gdk, GLib, GdkPixbuf;
+/* DOCUMENT Gtk, Gdk, GdkPixbuf, GLib
+     gy namespaces.
+   SEE ALSO: gy_gtk_i
+ */
+Gtk = gy.require("Gtk", "3.0");
+Gdk = gy.Gdk;
+GLib = gy.GLib;
+GdkPixbuf = gy.GdkPixbuf;
+
 func __gyterm_init
 {
   require,  "string.i";
   extern __gyterm_initialized, __gyterm_win;
-  Gtk=gy.require("Gtk");
-  noop, Gtk.init_check(0,);
-  gy_setlocale;
   __gyterm_win = Gtk.Window.new(Gtk.WindowType.toplevel);
   noop, __gyterm_win.set_title("Yorick command line");
   entry = gy_gtk_ycmd(1);
@@ -106,8 +107,6 @@ __gyterm_max=0;
 func __gyterm_key_pressed(widget, event, udata) {
   extern __gyterm_history, __gyterm_cur, __gyterm_max, __gyterm_idx;
 
-  Gdk=gy.Gdk;
-  Gtk=gy.Gtk;
   ev = Gdk.EventKey(event);
   ev, keyval, keyval;
   if (keyval==Gdk.KEY_Up) {
@@ -152,7 +151,6 @@ func gy_gtk_ycmd(noexpander)
    SEE ALSO: gy_i, gyentry, gy_gtk_ycmd_connect, gy_gtk_ywindow
  */
 {
-  Gtk=gy.require("Gtk", "3.0");
   entry = Gtk.Entry.new();
   noop, entry.set_vexpand(0);
   gy_gtk_ycmd_connect, entry;
@@ -171,10 +169,10 @@ func gy_gtk_ycmd_connect(widget) {
     Makes entry_widget mimick gyterm behavior.
 
    EXAMPLE
-    entry=gy.Gtk.Entry.new();
+    entry=Gtk.Entry.new();
     gy_gtk_ycmd_connect, entry;
 
-   SEE ALSO: gy_i, gyterm, gy_gtk_window_suspend, gy_gtk_main
+   SEE ALSO: gy_i, gyterm, gy_gtk_window_suspend
  */
   gy_signal_connect, widget, "key-press-event", __gyterm_key_pressed;
   noop, widget.set_placeholder_text("Yorick command");
@@ -183,66 +181,37 @@ func gy_gtk_ycmd_connect(widget) {
 
 func gy_gtk_window_suspend(win)
 /* DOCUMENT gy_gtk_window_suspend, window
-   
-    Connect a standard handler to the delete event of WINDOW.
-
-    Windows using gy_gtk_window_suspend should do so through
-    gy_gtk_main.
-    
-   EXAMPLE
-    noop, gy.require("Gtk", "3.0").init(0,);
-    gy_setlocale;
-    win=gy.Gtk.Window.new(gy.Gtk.WindowType.toplevel);
-    gy_gtk_main, win;
-
-   SEE ALSO: gy_i, gyterm, gy_gtk_ycmd_connect
+     Shorthand for
+      gy_signal_connect, win, "delete-event", gy_gtk_suspend;
+   SEE ALSO: gy_i, gy_gtk_suspend
  */
 {
   gy_signal_connect, win, "delete-event", gy_gtk_suspend;
-  //  gy_signal_connect, win, "destroy", __gyterm_destroy;
-}
-
-func __gyterm_destroy(widget) {
-  write, "destroy called on "+ pr1(widget)+"\n";
 }
 
 func gy_gtk_suspend(widget, event, udata)
 /* DOCUMENT gy_gtk_suspend, widget
-    Hide widget and stop Gtk main loop if this was the last remaining
-    registered one.
+     Hide widget. Intended as a callback for the delete-event signal of
+     window widgets. See gtk_widget_hide_on_delete() in the C
+     documentation.
    SEE ALSO: gy_gtk_window_suspend
  */
 {
-  extern __gygtk_windows;
-  idx = where (__gygtk_windows(1,)==gy_id(widget.get_toplevel()));
-  if (!numberof(idx)) gyerror, "window is not managed";
-  __gygtk_windows(2,idx) = 0;
   noop, widget.hide();
-  if (noneof(__gygtk_windows(2,))) {
-    //noop, gy.Gtk.main_quit();
-    if (is_func(gy_gtk_on_main_quit)) gy_gtk_on_main_quit;
-  }
   return 1;
 }
 
 func gyterm(cmd)
 /* DOCUMENT gyterm
-   
      Open a window containing a single line in which arbitrary Yorick
-     commands can be typed.
-
-     If you want to keep a command line around while launching another
-     gy-based, blocking GUI, simpy launch it from gyterm.
-
-     If you want to embed gyterm in another GUI, see
-     gy_gtk_ycmd_connect.
-
-   SEE ALSO: gy_i, gy_gtk_ycmd_connect, gycmap, gywindow
+     commands can be typed. If you want to embed gyterm in another GUI, see
+     gy_gtk_ycmd and gy_gtk_ycmd_connect.
+   SEE ALSO: gy_i, gy_gtk_ycmd, gy_gtk_ycmd_connect, gycmap, gywindow
  */
 {
   extern __gyterm_initialized, __gyterm_win;
   if (!__gyterm_initialized) __gyterm_init;
-  gy_gtk_main, __gyterm_win;
+  noop, __gyterm_win.show_all();
 }
 
 /// gycmap: a GUI for cmap
@@ -254,8 +223,6 @@ func __gycmap_init(void) {
     __gycmap_div_img, __gycmap_seq_img, __gycmap_qual_img,
     __gycmap_cur_names, __gycmap_gist_names;
 
-  Gtk=gy.require("Gtk", "3.0");
-  
   gist_png = find_in_path("gist-cmap.png", takefirst=1,
                           path=pathform(_(get_cwd(),
                                           _(Y_SITES,
@@ -268,8 +235,6 @@ func __gycmap_init(void) {
                                          Y_SITE)+"glade/")));
  
   
-  noop, Gtk.init_check(0,);
-  gy_setlocale;
   __gycmap_gist_img = Gtk.Image.new();
   noop, __gycmap_gist_img.set_from_file(gist_png);
   __gycmap_gist_names=
@@ -322,18 +287,18 @@ func __gycmap_init(void) {
 
 }
 
-func gycmap_gist_ct(name) {
+func __gycmap_gistct(name) {
   palette, name+".gp";
 }
 
 if (!is_func(gistct)) {
   __gycmap_old_yorick=1;
-  gistct=gycmap_gist_ct;
+  gistct=__gycmap_gistct;
  }
 
 func __gycmap_callback(widget, event, udata) {
   extern __gycmap_cur_names;
-  ev = gy.Gdk.EventButton(event);
+  ev = Gdk.EventButton(event);
   ev, x, x, y, y;
   name= __gycmap_cur_names(long(y/19)+1);
   if (is_void(__gycmap.callback))
@@ -431,7 +396,7 @@ func gycmap(callback)
     __gycmap;
   save, __gycmap, callback;
   if (!__gycmap_initialized) __gycmap_init;
-  gy_gtk_main, __gycmap_win;
+  noop, __gycmap_win.show_all();
 }
 
 //// gywindow: a yorick window wrapper
@@ -439,18 +404,19 @@ func gycmap(callback)
 func __gywindow_on_error
 {
   extern __gywindow_device;
-  if (is_void(__gywindow_device)) return;
-  noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
-  __gywindow_device=[];
+  __gywindow_ungrab;
 }
 
-func gy_gtk_allowgrab(allow) {
+func gy_gtk_allowgrab(allow)
+/* DOCUMENT gy_gtk_allowgrab, mode
+     mode = 0: forbid grabbing the mouse.
+     mose = 1: allow grabbing.
+   SEE ALSO: gywindow
+ */
+{
   extern __gy_gtk_allowgrab;
   __gy_gtk_allowgrab=allow;
-  if (!allow && !is_void(__gywindow_device)) {
-    noop, __gywindow_device.ungrab(gy.Gdk.CURRENT_TIME);
-    __gywindow_device = [];
-  }
+  if (!allow) __gywindow_ungrab;
 }
 gy_gtk_allowgrab, 1;
 
@@ -470,22 +436,6 @@ func gywinkill(yid)
     } else save, tmp, "", __gywindow( (nothing=i) );
   }
   __gywindow = tmp;
-}
-
-func gy_gtk_destroy(win)
-/* DOCUMENT gy_gtk_destroy, win
-
-     Hide window WIN and remove it from the lsit of managed windows.
-
-   SEE ALSO: gy_gtk_main
- */
-{
-  extern __gygtk_windows;
-  gy_gtk_suspend, win; 
-  idx = where (__gygtk_windows(1,)!=gy_id(win));
-  if (numberof(idx)) __gygtk_windows = __gygtk_windows(,idx);
-  else __gygtk_windows = [];
-  // noop, win.destroy();
 }
 
 func gy_gtk_ywindow_reinit(yid, dpi=, style=)
@@ -520,8 +470,6 @@ func __gywindow_event_handler(widget, event, udata) {
   cur = __gywindow_find_by_xid(gy_gtk_xid(widget));
   if (is_void(cur)) return;
 
-  Gtk = gy.require("Gtk", "3.0");
-  Gdk = gy.Gdk;
   EventType=Gdk.EventType;
 
   ev = Gdk.EventAny(event);
@@ -567,11 +515,8 @@ func __gywindow_event_handler(widget, event, udata) {
     return;
   }
 
-  if (type == EventType.leave_notify) {
-    /*
-    device = Gdk.Device(Gtk.get_current_event_device());
-    noop, device.ungrab(Gdk.CURRENT_TIME);
-    */
+  if (type == EventType.leave_notify && Gdk.EventCrossing(ev).mode != Gdk.CrossingMode.grab) {
+    __gywindow_ungrab;
     return;
   }
 
@@ -671,7 +616,7 @@ func __gywindow_event_handler(widget, event, udata) {
         y<cur.vadjustment.get_value() ||
         x>cur.hadjustment.get_value()+cur.hadjustment.get_page_size() ||
         y>cur.vadjustment.get_value()+cur.vadjustment.get_page_size()) {
-      noop, __gywindow_device.ungrab(Gdk.CURRENT_TIME);
+      __gywindow_ungrab;
       return;
     }
     noop, cur.slabel.set_text("?");
@@ -683,34 +628,7 @@ func __gywindow_event_handler(widget, event, udata) {
   //write, format="in __gywindow_realized. event: %d\n", type;
 }
 
-__gygtk_windows=[];
-
-func gy_gtk_main(win)
-/* DOCUMENT gy_gtk_main, toplevel_window
-   
-     Show window and ensure the Gtk main loop is running, while
-     keeping track of the number of windows open.
-       
-     Windows open this way should use gy_gtk_window_suspend to close the
-     window.
-
-   SEE ALSO: gy_gtk_window_suspend
-*/ 
-     
-{
-  extern __gygtk_windows;
-  id = gy_id(win);
-  if (is_void(__gygtk_windows) || noneof(__gygtk_windows(1,)==id)) {
-    grow, __gygtk_windows, [[id, 0]];
-    gy_gtk_window_suspend, win;
-  }
-  idx=where(__gygtk_windows(1,)==id)(1);
-  if (__gygtk_windows(2,idx)) return;
-  __gygtk_windows(2,idx)=1;
-  noop, win.show_all();
-  //if (sum(__gygtk_windows(2,))==1) noop, gy.Gtk.main();
-}
-
+/// ywindows
 if (is_void(__gywindow)) __gywindow=save();
 
 func gy_gtk_ywindow_connect(&yid, win, da, slabel, xlabel, ylabel, dpi=, style=,
@@ -725,11 +643,18 @@ func gy_gtk_ywindow_connect(&yid, win, da, slabel, xlabel, ylabel, dpi=, style=,
 
    ARGUMENTS
     yid: Yorick window ID to embed
-    win: the toplevel gy.Gtk.Window widget
-    da:  the gy.Gtk.DrawingArea in which the yorick window will be embedded.
-    s|x|ylabel: gy.Gtk.Label widget in which to report mouse motion.
+    win: the toplevel Gtk.Window widget
+    da:  the Gtk.DrawingArea in which the yorick window will be embedded.
+    s|x|ylabel: Gtk.Label widgets in which to report mouse motion.
 
-   SEE ALSO: gy_i, gywindow, gy_gtk_ywindow
+   KEYWORDS
+    on_realize: function to call when the window is realized
+    on_configure: function to call whenever the function is configured
+          (i.e. resized)
+    grab: 1 if window should grab the mouse, necessary to use
+          gy_gtk_ywindow_mouse_handler, otherwise discouraged
+    
+   SEE ALSO: gy_i, gywindow, gy_gtk_ywindow, gy_gtk_ywindow_mouse_handler
  */
 {
   extern __gywindow;
@@ -768,7 +693,7 @@ func gy_gtk_ywindow_mouse_handler(yid, handler)
    
  */
 {
-  save, __gywindow_find_by_yid(yid), mouse_handler=handler;
+  save, __gywindow_find_by_yid(yid), mouse_handler=handler, grab=1;
 }
 
 func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
@@ -782,8 +707,9 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
 
      If YID is nil, a new ID is taken and YID is set to this value.
 
-   KEYWORDS: dpi, width, height, style.
-   SEE ALSO: gy_i, gywindow, gyterm, gycmap, gy_gtk_ywindow_connect
+   KEYWORDS: dpi, width, height, style: see window
+             on_realize, on_configure, grab: see gy_gtk_window_connect
+   SEE ALSO: gy_i, gywindow, window, gy_gtk_ywindow_connect
  */
 {
   extern __gywindow;
@@ -794,7 +720,6 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
   if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
   
-  Gtk = gy.require("Gtk", "3.0");
   box = Gtk.Box.new(Gtk.Orientation.vertical, 0);
 
   box2=Gtk.Box.new(Gtk.Orientation.horizontal, 0);
@@ -826,7 +751,7 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
   noop, sw.add(tmp);
   
   da = Gtk.DrawingArea.new();
-  noop, da.add_events(gy.Gdk.EventMask.all_events_mask);
+  noop, da.add_events(Gdk.EventMask.all_events_mask);
   noop, da.set_size_request(long(8.5*dpi),long(11*dpi));
   noop, tmp.add(da);
 
@@ -846,7 +771,6 @@ func __gywindow_save(wdg, data)
 {
   require, "pathfun.i";
   extern result;
-  Gtk=gy.Gtk;
   
   win = Gtk.FileChooserDialog();
   fcfc = Gtk.FileChooser(win);
@@ -938,14 +862,11 @@ func __gywindow_save(wdg, data)
 }
 
 func __gywindow_init(&yid, dpi=, width=, height=, style=,
-                     on_realize=, on_configure=)
+                     on_realize=, on_configure=, grab=)
 {
   extern __gywindow, adj;
   if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
   if (is_void(yid)) error, "unable to find free id";
-  Gtk = gy.require("Gtk", "3.0");
-  noop, Gtk.init_check(0,);
-  gy_setlocale;
   win = Gtk.Window.new(Gtk.WindowType.toplevel);
   noop, win.set_default_size(450, 488);
   noop, win.set_title("Yorick "+pr1(yid));
@@ -955,7 +876,7 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=,
   noop, box.pack_start(gy_gtk_ywindow
                        (yid,
                         dpi=dpi, width=width, height=height, style=style,
-                        on_realize=on_realize, on_configure=on_configure),
+                        on_realize=on_realize, on_configure=on_configure, grab=grab),
                        1, 1, 0);
 
   cur = __gywindow_find_by_yid(yid);
@@ -1139,7 +1060,7 @@ func gy_gtk_ywindow_free_id(void)
 }
 
 func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
-              on_realize=, on_configure=)
+              on_realize=, on_configure=, grab=)
 /* DOCUMENT gywindow, yid
 
     When the Gtk main loop is running, the Yorick main loop is
@@ -1152,8 +1073,9 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
     application, have a look at gy_gtk_ywindow.
 
    KEYWORDS:
-    freeid: if true, a new ID is foound using gy_gtk_ywindow_free_id.
+    freeid: if true, a new ID is found using gy_gtk_ywindow_free_id.
     dpi, width, height, style: see window
+    on_realize, on_configure, grab: see gy_gtk_window_connect
 
    SEE ALSO: gyterm, gy_gtk_ywindow, gy_gtk_ywindow_free_id, window,
              gywinkill
@@ -1172,9 +1094,9 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
       winkill, yid;
       __gywindow_init, yid,
         dpi=dpi, width=width, height=height, style=style,
-        on_realize=on_realize, on_configure=on_configure;
+        on_realize=on_realize, on_configure=on_configure, grab=grab;
     }
-  gy_gtk_main, __gywindow_find_by_yid(yid).win;
+  noop, __gywindow_find_by_yid(yid).win.show_all();
 }
 
 //// error message
@@ -1182,10 +1104,15 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
 func gyerror(msg)
 /* DOCUMENT gyerror, msg
      Display error message in a Gtk window.
+     
+     gy_gtk.i sets after_error so that all error messages are
+     redirected to gyerror: it is usually not necessary to call
+     gyerror directly.
+
+   SEE ALSO: gy_gtk_i
  */
 {
   aspect = 1.61803398875; // nombre d'or
-  Gtk=gy_gtk_init();
   dmsg = Gtk.MessageDialog("message-type", Gtk.MessageType.error,
                            buttons=Gtk.ButtonsType.close,
                            text=msg);
@@ -1204,7 +1131,7 @@ func gy_gtk_xid(wdg)
      This allows displaying a Yorick window inside a Gtk widget.
 
    EXAMPLE:
-     builder=gy.Gtk.Builder.new(glade_file);
+     builder=Gtk.Builder.new(glade_file);
      ywin = builder.get_object(yorick_widget_name);
      func on_ywin_event(void) {
        window, parent=gy_gtk_xid(ywin);
@@ -1215,7 +1142,7 @@ func gy_gtk_xid(wdg)
  */
 
 {
-  return gy.GdkX11.X11Window(gy.Gtk.Widget(wdg).window).get_xid();
+  return gy.GdkX11.X11Window(Gtk.Widget(wdg).window).get_xid();
 }
 
 
@@ -1242,12 +1169,11 @@ func gy_gtk_builder(fname)
 /* DOCUMENT builder = gy_gtk_builder(fname)
    
     Looks for a file named FNAME in the Y_GLADE path and returns a
-    gy.Gtk.Builder object with FNAME loaded.
+    Gtk.Builder object with FNAME loaded.
 
    SEE ALSO: Y_PATH, gy
  */
 {
-  Gtk=gy.require("Gtk", "3.0");
   file = find_in_path(fname,takefirst=1,path=Y_GLADE);
   if (is_void(file)) gyerror("No such file in glade path: " + fname);
   streplace,file,strfind("~",file),get_env("HOME");
@@ -1255,15 +1181,39 @@ func gy_gtk_builder(fname)
   noop, builder.add_from_file(file);
   return builder;
 }
-
+extern gy_gtk_before_init;
 func gy_gtk_init(argv)
+/* DOCUMENT gy_gtk_init, argv
+   
+     Initialize Gtk. Called automatically by #include "gy_gtk.i"
+     
+   EXTERNAL VARIABLES:
+   
+     If gy_gtk_before_init is a function, it is called before
+     Gtk.init_check(). This allows for instance setting the
+     application name:
+
+     func gy_gtk_before_init
+     {
+      noop, gy.GLib.set_prgname("MyProg");
+      noop, gy.GLib.set_application_name("MyProg");
+     }
+     #include "gy_gtk.i"
+     
+   SEE ALSO: gy_gtk_i
+ */
 {
-  Gtk=gy.require("Gtk", "3.0");
-  ret = Gtk.init_check(numberof(argv),argv);
+  extern __gy_gtk_initialized;
+  Gtk = gy.require("Gtk", "3.0");
+  if (__gy_gtk_initialized) return Gtk;
+  if (is_func(gy_gtk_before_init)) gy_gtk_before_init;
+  ret = gy.Gtk.init_check(numberof(argv),argv);
   gy_setlocale;
   if (!ret) error, "Gtk initialization failed";
+  __gy_gtk_initialized=1;
   return Gtk;
 }
+gy_gtk_init;
 
 extern gy_gtk_idler_period;
 /* DOCUMENT gy_gtk_idler_period
@@ -1298,7 +1248,7 @@ func gy_gtk_idler (start_stop)
   extern __gy_gtk_set_idler, gy_gtk_idler_period;
   if (!is_void(start_stop)) __gy_gtk_set_idler=start_stop;
   if (!__gy_gtk_set_idler) return;
-  while (gy.Gtk.events_pending ())  noop, gy.Gtk.main_iteration ();
+  while (Gtk.events_pending ())  noop, Gtk.main_iteration ();
   if (!is_void( (psn=current_mouse()) )  && !is_void( (cur=__gywindow_find_by_yid(psn(0))) )) {
     noop, cur.slabel.set_text(swrite(long(psn(3))));
     noop, cur.xlabel.set_text(swrite(psn(1)));
@@ -1314,6 +1264,13 @@ func __gy_gtk_on_error
   __gywindow_on_error;
   gyerror, catch_message;
   gy_gtk_idler, 1;
+}
+
+func __gywindow_ungrab
+{
+  extern __gywindow_device;
+  if (!is_void(__gywindow_device)) noop, __gywindow_device.ungrab(Gdk.CURRENT_TIME);
+  __gywindow_device = [];
 }
 
 after_error = __gy_gtk_on_error;
