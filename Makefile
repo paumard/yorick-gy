@@ -1,9 +1,9 @@
 # these values filled in by    yorick -batch make.i
-Y_MAKEDIR=/usr/lib/yorick
-Y_EXE=/usr/lib/yorick/bin/yorick
+Y_MAKEDIR=
+Y_EXE=
 Y_EXE_PKGS=
-Y_EXE_HOME=/usr/lib/yorick
-Y_EXE_SITE=/usr/lib/yorick
+Y_EXE_HOME=
+Y_EXE_SITE=
 Y_HOME_PKG=
 
 # ----------------------------------------------------- optimization flags
@@ -36,7 +36,7 @@ EXTRA_PKGS=$(Y_EXE_PKGS)
 PKG_CLEAN=
 
 # autoload file for this package, if any
-PKG_I_START=
+PKG_I_START=gy_start.i
 # non-pkg.i include files for this package, if any
 PKG_I_EXTRA=gy.i gy_gtk.i
 
