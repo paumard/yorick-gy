@@ -17,3 +17,6 @@ License: GPL-3+
     .
     You should have received a copy of the GNU General Public License
     along with gy.  If not, see <http://www.gnu.org/licenses/>.
+    .
+    Under Debian systems, a copy of the GNU General Public License can
+    be found at /usr/share/common-licenses/GPL-3.

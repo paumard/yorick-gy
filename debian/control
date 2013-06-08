@@ -16,7 +16,7 @@ Depends: yorick (>= 2.2), ${shlibs:Depends}, ${misc:Depends}
 Recommends: gir1.2-gtk-3.0
 Description: GObject introspection and Gtk bindings for Yorick
  This plug-in allows using GObject-introspection.
- In turn, this allows writting Gtk graphical user interfaces directly
+ In turn, this allows writing Gtk graphical user interfaces directly
  in Yorick.
  .
  Special helpers are provided for building Gtk interfaces.
