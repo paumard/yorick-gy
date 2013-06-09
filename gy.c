@@ -159,7 +159,7 @@ gy_Object_extract(void *obj, char * name)
 	if (!strcmp(name,"data")) action=GYLIST_ACTION_DATA;
 	else if (!strcmp(name, "next")) action =GYLIST_ACTION_NEXT;
 	else if (!strcmp(name, "prev")) action =GYLIST_ACTION_PREV;
-	else y_errorq("Unkown action for G(S)List: %s", name);
+	else y_errorq("Unknown action for G(S)List: %s", name);
 	
 	if (action == GYLIST_ACTION_PREV && type == GI_TYPE_TAG_GSLIST)
 	  y_error("Single-linked list: no prev");
@@ -551,6 +551,7 @@ gy_Object_eval(void *obj, int argc)
   }
 
   for (i=0; i<n_args;++i) {
+    GY_DEBUG("Getting argument %d\n", i);
     g_callable_info_load_arg (o->info, i, &arginfo);
 
     GITypeInfo * argtype = g_arg_info_get_type(&arginfo);

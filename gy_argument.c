@@ -75,7 +75,8 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
     case GI_INFO_TYPE_CALLBACK:
-      arg->v_pointer=yget_gy_Object(iarg)->object;
+      if (yarg_nil(iarg)) arg->v_pointer=NULL;
+      else arg->v_pointer=yget_gy_Object(iarg)->object;
       break;
       //case GI_INFO_TYPE_INTERFACE:
     case GI_INFO_TYPE_STRUCT:
