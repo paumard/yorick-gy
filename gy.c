@@ -119,11 +119,27 @@ void gy_Object_print(void *obj) {
     y_print(spointer, 0);
     y_print(" is pointer to ", 0);
   }
-  y_print("gy object name: ", 0);
   if (!o->info) {
-    y_print("(unknown)", 0);
+    y_print("unknown type object", 0);
     return;
   }
+  
+  if (GI_IS_TYPE_INFO(o->info)) {
+    GITypeTag type = g_type_info_get_tag(o->info);
+    switch(type) {
+    case GI_TYPE_TAG_GLIST:
+      y_print("double linked list", 0);
+      break;
+    case GI_TYPE_TAG_GSLIST:
+      y_print("single linked list", 0);
+      break;
+    default:
+      y_error("unhandled TypeInfo");
+    }
+    return;
+  }
+
+  y_print("gy object name: ", 0);
   y_print(g_base_info_get_name(o->info), 0);
   y_print(", type: ", 0);
   y_print(g_info_type_to_string(g_base_info_get_type (o->info)), 0);
@@ -156,17 +172,43 @@ gy_Object_extract(void *obj, char * name)
 #define GYLIST_ACTION_DATA 1
 #define GYLIST_ACTION_NEXT 2
 #define GYLIST_ACTION_PREV 3
+#define GYLIST_ACTION_SIZE 4
 	if (!strcmp(name,"data")) action=GYLIST_ACTION_DATA;
 	else if (!strcmp(name, "next")) action =GYLIST_ACTION_NEXT;
 	else if (!strcmp(name, "prev")) action =GYLIST_ACTION_PREV;
+	else if (!strcmp(name, "size")) action =GYLIST_ACTION_SIZE;
 	else y_errorq("Unknown action for G(S)List: %s", name);
 	
+	if (!o->object && action !=GYLIST_ACTION_SIZE)
+	  y_error("G(S)List is nil");
+	GY_DEBUG("Extracting member %s from G(S)List\n", name);
+	if (o->object) {
+	  GY_DEBUG("   data=%p\n"
+		   "   next=%p\n", o->object, ((GList*)o->object)->next);
+	  if (type==GI_TYPE_TAG_GLIST)
+	    GY_DEBUG("   prev=%p\n", ((GList*)o->object)->prev);
+	}
+
+	if (action == GYLIST_ACTION_SIZE) {
+	  GList* lst = o->object;
+	  if (!lst) {
+	    ypush_long(0);
+	    return;
+	  }
+	  long sz=1;
+	  while (lst=lst->next) ++sz;
+	  ypush_long(sz);
+	  return;
+	}
+
 	if (action == GYLIST_ACTION_PREV && type == GI_TYPE_TAG_GSLIST)
 	  y_error("Single-linked list: no prev");
 
 	if ( (action == GYLIST_ACTION_NEXT && !((GList*) o->object) -> next) ||
-	     (action == GYLIST_ACTION_PREV && !((GList*) o->object) -> prev) )
+	     (action == GYLIST_ACTION_PREV && !((GList*) o->object) -> prev) ) {
 	  ypush_nil();
+	  return;
+	}
 
 	GITypeInfo * itrf = g_type_info_get_interface(g_type_info_get_param_type(o->info, 0));
 

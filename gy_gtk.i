@@ -46,13 +46,17 @@ local gy_gtk_i;
     gy_gtk_ycmd and gy_gtk_ywindow.
 
    SIDE EFFECTS:
-    #include "gy_gtk.i" has the following side effects:
+    #include "gy_gtk.i" has the following side effect:
+     - the users locale is set, excluding LC_NUMERIC, using
+       gy_setlocale.
+     - mouse() is replaced by gy_gtk_mouse().
+   
+    Whenever a GUI is running:
      - gy_gtk_idler() runs repeatedly using adter(). Some functions
        (such as mouse()) cannot run as long as this loop is running.
      - after_error is set to a function which redirects errors to a
        dialog and makes some clean-up.
-     - the users locale is set, excluding LC_NUMERIC, using
-       gy_setlocale.
+    See gy_gtk_main().
 
    EXAMPLE:
     The gy source code comes with a few example scripts. Here comes a
@@ -72,9 +76,10 @@ local gy_gtk_i;
     gy_signal_connect, button, "clicked", hello;
 
     // Show window
-    noop, win.show_all();
+    gy_gtk_main, win, on_delete=1;
     
-   SEE ALSO: gy_i, gyterm, gycmap, gywindow
+   SEE ALSO: gy_i, gyterm, gycmap, gywindow, gy_gtk_main
+             and the C documentation for the Gtk+ 3 API.
  */
 
 extern Gtk, Gdk, GLib, GdkPixbuf;
@@ -172,33 +177,121 @@ func gy_gtk_ycmd_connect(widget) {
     entry=Gtk.Entry.new();
     gy_gtk_ycmd_connect, entry;
 
-   SEE ALSO: gy_i, gyterm, gy_gtk_window_suspend
+   SEE ALSO: gy_i, gyterm, gy_gtk_main
  */
   gy_signal_connect, widget, "key-press-event", __gyterm_key_pressed;
   noop, widget.set_placeholder_text("Yorick command");
   noop, widget.set_tooltip_text("Yorick command");
 }
 
-func gy_gtk_window_suspend(win)
-/* DOCUMENT gy_gtk_window_suspend, window
-     Shorthand for
-      gy_signal_connect, win, "delete-event", gy_gtk_suspend;
-   SEE ALSO: gy_i, gy_gtk_suspend
+func gy_gtk_hide_on_delete(wdg, evt, udata)
+/* DOCUMENT gy_gtk_destroy_on_delete, window, [evt, data]
+
+     If evt is void, set-up gy_gtk_hide_on_delete as a callback for
+     the "delete-event" Gtk Window event.
+
+     If evt is not void, act as a callback: hide the window. In
+     addition, stops the event loop if there are no visible windows
+     remaining.
+     
+   SEE ALSO: gy_gtk_destroy_on_delete, gy_gtk_idler_maybe_stop,
+             gy_gtk_main, gy_gtk_i
  */
 {
-  gy_signal_connect, win, "delete-event", gy_gtk_suspend;
+  if (is_void(evt))
+      gy_signal_connect, wdg, "delete-event", gy_gtk_hide_on_delete;
+  noop, wdg.hide();
+  gy_gtk_idler_maybe_stop;
+  return 1;
 }
 
-func gy_gtk_suspend(widget, event, udata)
-/* DOCUMENT gy_gtk_suspend, widget
-     Hide widget. Intended as a callback for the delete-event signal of
-     window widgets. See gtk_widget_hide_on_delete() in the C
-     documentation.
-   SEE ALSO: gy_gtk_window_suspend
+func gy_gtk_destroy_on_delete(wdg, evt, udata)
+/* DOCUMENT gy_gtk_destroy_on_delete, window, [evt, data]
+
+     If evt is void, set-up gy_gtk_destroy_on_delete as a callback for
+     the "delete-event" Gtk Window event.
+
+     If evt is not void, act as a callback: destroy the window. In
+     addition, stops the event loop if there are no visible windows
+     remaining.
+     
+   SEE ALSO: gy_gtk_hide_on_delete, gy_gtk_idler_maybe_stop,
+             gy_gtk_main, gy_gtk_i
  */
 {
-  noop, widget.hide();
+  if (is_void(evt))
+      gy_signal_connect, wdg, "delete-event", gy_gtk_destroy_on_delete;
+  noop, wdg.destroy();
+  gy_gtk_idler_maybe_stop;
   return 1;
+}
+
+func gy_gtk_idler_maybe_stop
+/* DOCUMENT gy_gtk_idler_maybe_stop
+     Stop the event handler if there remains no window visible.
+     This should always be called in your delete-event handler.
+   SEE ALSO: gy_gtk_main, gy_gtk_hide_on_delete, gy_gtk_destroy_on_delete
+ */
+{
+  extern after_error;
+
+  gy_gtk_idler; // perform pending actions such as hiding a window!
+
+  tlvs = Gtk.Window.list_toplevels();
+  res = 0;
+  if (tlvs.size) {
+    for (;!is_void(tlvs);tlvs=tlvs.next) res |= tlvs.data.visible();
+  }
+  if (!res) {
+    after_error=[];
+    gy_gtk_idler, 0;
+  }
+}
+
+
+func gy_gtk_main(win, on_delete=)
+/* DOCUMENT gy_gtk_main, win, on_delete=CALLBACK;
+
+    Show Gtk.Window win and set-up gy_gtk.i event loop:
+    
+    1. Set-up after_error handler,
+    2. Optionally connect delete-event callback,
+    3. Show win;
+    4. Launch event handler loop.
+
+    It is (probably) best to stop the event loop when no windows are
+    visible. To achieve this, the delete-event callback of any window
+    (and any other callback which hides or detroys a window) should
+    call gy_gtk_idler_maybe_stop.
+
+   KEYWORDS:
+    on_delete:
+      the name (string) of a Yorick function suitable as a
+      delete-event handler:
+        func on_delete(widget, event, data) {
+          // hide or destroy
+          gy_gtk_idler_maybe_stop;
+          return 1;
+        }
+      on_delete=1 is a short-hand for on_delete="gy_gtk_hide_on_delete";
+      on_delete=2 is a short-hand for on_delete="gy_gtk_destroy_on_delete";
+
+    
+   SEE ALSO: gy_gtk_i, gy_gtk_hide_on_delete, gy_gtk_destroy_on_delete
+ */
+{
+  extern after_error;
+  after_error=__gy_gtk_on_error;
+  if (!is_void(win)) {
+    if (is_numerical(on_delete)) {
+      if      (on_delete==0) on_delete=[];
+      else if (on_delete==1) on_delete="gy_gtk_hide_on_delete";
+      else if (on_delete==2) on_delete="gy_gtk_destroy_on_delete";
+    }
+    if (!is_void(on_delete)) gy_signal_connect, win, "delete-event", on_delete;
+    noop, win.show_all();
+  }
+  gy_gtk_idler,1;
 }
 
 func gyterm(cmd)
@@ -210,8 +303,12 @@ func gyterm(cmd)
  */
 {
   extern __gyterm_initialized, __gyterm_win;
-  if (!__gyterm_initialized) __gyterm_init;
-  noop, __gyterm_win.show_all();
+  local on_delete;
+  if (!__gyterm_initialized) {
+    __gyterm_init;
+    on_delete=1;
+  }
+  gy_gtk_main, __gyterm_win, on_delete=on_delete;
 }
 
 /// gycmap: a GUI for cmap
@@ -283,7 +380,7 @@ func __gycmap_init(void) {
 
   noop, __gycmap_builder.get_object("box1").add(gy_gtk_ycmd());
 
-  gy_gtk_window_suspend, __gycmap_win;
+  //  gy_gtk_window_hide_on_delete, __gycmap_win;
   
   __gycmap_initialized=1;
 
@@ -396,9 +493,13 @@ func gycmap(callback)
 {
   extern __gycmap_initialized, __gycmap_builder, __gycmap_win, __gycmap_ebox,
     __gycmap;
+  local on_delete;
   save, __gycmap, callback;
-  if (!__gycmap_initialized) __gycmap_init;
-  noop, __gycmap_win.show_all();
+  if (!__gycmap_initialized) {
+    __gycmap_init;
+    on_delete=1;
+  }
+  gy_gtk_main, __gycmap_win, on_delete=on_delete;
 }
 
 //// gywindow: a yorick window wrapper
@@ -1083,6 +1184,7 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
              gywinkill
 */
 {
+  local on_delete;
   if (freeid) {
     yid = gy_gtk_ywindow_free_id();
     if (is_void(yid)) error, "unable to find free id";
@@ -1097,8 +1199,9 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
       __gywindow_init, yid,
         dpi=dpi, width=width, height=height, style=style,
         on_realize=on_realize, on_configure=on_configure, grab=grab;
+      on_delete=1;
     }
-  noop, __gywindow_find_by_yid(yid).win.show_all();
+  gy_gtk_main, __gywindow_find_by_yid(yid).win, on_delete=on_delete;
 }
 
 //// error message
@@ -1122,6 +1225,7 @@ func gyerror(msg)
   noop, dmsg.set_size_request(long(200*aspect), 200);
   noop, dmsg.run();
   noop, dmsg.destroy();
+  gy_gtk_idler_flush;
 }
 
 //// mouse wrapper
@@ -1146,7 +1250,7 @@ func gy_gtk_mouse(system, style, prompt)
 {
   gy_gtk_idler, 0;
   res = __gy_gtk_builtin_mouse(system, style, prompt);
-  gy_gtk_idler, 1;
+  if (gy_gtk_main_running) gy_gtk_idler, 1;
   return res;
 }
 mouse = gy_gtk_mouse;
@@ -1271,20 +1375,27 @@ func gy_gtk_idler (start_stop)
    EXTERNAL VARIABLES:
     gy_gtk_idler_period
 
-   SEE ALSO: gy_gtk_i, gy_gtk_idler_period, after
+   SEE ALSO: gy_gtk_i, gy_gtk_idler_period, after,
+             gy_gtk_idler_flush, gy_gtk_idler_maybe_stop
  */
 {
-  extern gy_gtk_idler_period;
-  if (is_void(start_stop)) start_stop=1;
+  extern gy_gtk_idler_period, gy_gtk_main_running;
+  if (is_void(start_stop)) start_stop=gy_gtk_main_running;
 
   // always stop idler
-  after, -, gy_gtk_idler;
+  if (gy_gtk_main_running) {
+    after, -, gy_gtk_idler;
+  }
 
   // if start_stop==0, that's all
-  if (!start_stop)  return;
-
+  if (!start_stop)  {
+    gy_gtk_main_running=O;
+    return;
+  }
+  
+  gy_gtk_main_running=1;
   // process Gtk events
-  while (Gtk.events_pending ())  noop, Gtk.main_iteration ();
+  gy_gtk_idler_flush;
 
   // read mouse to update non-grabing gywindows
   if (!is_void( (psn=current_mouse()) )  &&
@@ -1306,7 +1417,16 @@ func __gy_gtk_on_error
 {
   __gywindow_on_error;
   gyerror, catch_message;
-  gy_gtk_idler, 1;
+  gy_gtk_idler;
+}
+
+func gy_gtk_idler_flush
+/* DOCUMENT gy_gtk_idler_flush
+     Process all pending events in the Gtk+ 3 event queue.
+   SEE ALSO: gy_gtk_idler
+ */
+{
+    while (Gtk.events_pending ())  noop, Gtk.main_iteration ();
 }
 
 func __gywindow_ungrab
@@ -1315,6 +1435,3 @@ func __gywindow_ungrab
   if (!is_void(__gywindow_device)) noop, __gywindow_device.ungrab(Gdk.CURRENT_TIME);
   __gywindow_device = [];
 }
-
-after_error = __gy_gtk_on_error;
-gy_gtk_idler, 1;
