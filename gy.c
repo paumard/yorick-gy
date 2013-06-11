@@ -416,6 +416,31 @@ gy_Object_eval(void *obj, int argc)
     isstruct = GI_IS_STRUCT_INFO(o->info),
     isitrf   = GI_IS_INTERFACE_INFO(o->info);
 
+  if (GI_IS_TYPE_INFO(o->info)) {
+    GITypeTag type = g_type_info_get_tag(o->info);
+    if (type !=GI_TYPE_TAG_GLIST && type !=GI_TYPE_TAG_GSLIST)
+      y_error("Unimplemented");
+    if (!o->object) y_error("G(S)List is nil");
+    GList* lst = o->object;
+    long idx = ygets_l(argc-1)-1;
+    gy_Object * out = ypush_gy_Object();
+    if (type !=GI_TYPE_TAG_GLIST)
+      out->object=g_list_nth_data (lst, idx);
+    else if (type !=GI_TYPE_TAG_GSLIST)
+      out->object=g_slist_nth_data ((GSList*)lst, idx);
+    if (!out->object) y_error("index out of range");
+    
+    GITypeInfo * itrf =
+      g_type_info_get_interface(g_type_info_get_param_type(o->info, 0));
+    out -> repo = o -> repo;
+    out -> info = itrf;
+    if (g_base_info_get_type (itrf) == GI_INFO_TYPE_OBJECT) {
+      g_object_ref(out -> object);
+    }
+    g_base_info_ref(out -> info);
+    return;
+  }
+
   if (isobject || isitrf || isstruct) {
     GY_DEBUG("Pushing gy_Object return value\n");
     gy_Object* out = ypush_gy_Object(0);
