@@ -283,6 +283,8 @@ func __gycmap_init(void) {
 
   noop, __gycmap_builder.get_object("box1").add(gy_gtk_ycmd());
 
+  gy_gtk_window_suspend, __gycmap_win;
+  
   __gycmap_initialized=1;
 
 }
@@ -1122,6 +1124,33 @@ func gyerror(msg)
   noop, dmsg.destroy();
 }
 
+//// mouse wrapper
+
+if (is_void(__gy_gtk_builtin_mouse)) __gy_gtk_builtin_mouse=mouse;
+func gy_gtk_mouse(system, style, prompt)
+/* DOCUMENT result= gy_gtk_mouse(system, style, prompt)
+   
+     Suspends the gy_gtk_idler loop, calls mouse(), and resets the
+     gy_gtk_idler loop.
+
+     mouse() does not play well with after(), which gy_gtk.i uses
+     extensively.  This function wraps around mouse() to alleviate
+     this.
+     
+     By default, gy_gtk.i installs gy_gtk_mouse as
+     mouse, replacing the built-in which remains available as
+     __gy_gtk_builtin_mouse.
+
+   SEE ALSO: gy_gtk_idler, __gy_gtk_builtin_mouse, after, gy_gtk_i
+ */
+{
+  gy_gtk_idler, 0;
+  res = __gy_gtk_builtin_mouse(system, style, prompt);
+  gy_gtk_idler, 1;
+  return res;
+}
+mouse = gy_gtk_mouse;
+
 //// utilities
 
 func gy_gtk_xid(wdg)
@@ -1240,21 +1269,35 @@ func gy_gtk_idler (start_stop)
     start_stop: 1 to start the loop, 0 to stop it.
 
    EXTERNAL VARIABLES:
-    gy_gtk_idler_period, __gy_gtk_set_idler
+    gy_gtk_idler_period
 
    SEE ALSO: gy_gtk_i, gy_gtk_idler_period, after
  */
 {
-  extern __gy_gtk_set_idler, gy_gtk_idler_period;
-  if (!is_void(start_stop)) __gy_gtk_set_idler=start_stop;
-  if (!__gy_gtk_set_idler) return;
+  extern gy_gtk_idler_period;
+  if (is_void(start_stop)) start_stop=1;
+
+  // always stop idler
+  after, -, gy_gtk_idler;
+
+  // if start_stop==0, that's all
+  if (!start_stop)  return;
+
+  // process Gtk events
   while (Gtk.events_pending ())  noop, Gtk.main_iteration ();
-  if (!is_void( (psn=current_mouse()) )  && !is_void( (cur=__gywindow_find_by_yid(psn(0))) )) {
+
+  // read mouse to update non-grabing gywindows
+  if (!is_void( (psn=current_mouse()) )  &&
+      !is_void( (cur=__gywindow_find_by_yid(psn(0))) )) {
     noop, cur.slabel.set_text(swrite(long(psn(3))));
     noop, cur.xlabel.set_text(swrite(psn(1)));
     noop, cur.ylabel.set_text(swrite(psn(2)));
   }
+
+  // start idler
   after, gy_gtk_idler_period, gy_gtk_idler;
+
+  // let Yorick display its prompt
   maybe_prompt;
 }
 
