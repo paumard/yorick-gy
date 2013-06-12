@@ -18,59 +18,139 @@
  */
 
 #include "gy.h"
+#include "string.h"
+
 void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
-  //gint alen;
-  //GIArrayType atype;
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
+  GY_DEBUG("Getting %s into Argument\n", g_type_tag_to_string(type));
   switch(type) {
+
   case GI_TYPE_TAG_VOID:
     if (yarg_nil(iarg)) arg->v_pointer=NULL;
     else y_error("unimplemented void... type (?!)");
     break;
+
   case GI_TYPE_TAG_BOOLEAN:
     arg->v_boolean=yarg_true(iarg);
     break;
+
   case GI_TYPE_TAG_UINT8:
     arg->v_uint8=(gint8)ygets_l(iarg);
     break;
+
   case GI_TYPE_TAG_INT32:
     arg->v_int32=(gint32)ygets_l(iarg);
     break;
+
   case GI_TYPE_TAG_UINT32:
     arg->v_int32=(guint32)ygets_l(iarg);
     break;
+
   case GI_TYPE_TAG_DOUBLE:
     arg->v_double=ygets_d(iarg);
     break;
+
   case GI_TYPE_TAG_UTF8:
   case GI_TYPE_TAG_FILENAME:
     arg->v_string=ygets_q(iarg);
     GY_DEBUG( "argument: %s\n", arg->v_string);
     break;
-  case GI_TYPE_TAG_ARRAY:
-    //alen=g_type_info_get_array_length(info);
-    //atype=g_type_info_get_array_type (info);
-    switch (yarg_number(iarg)) {
-    case 0:
-      if (yarg_string(iarg)) arg->v_pointer=ygeta_q(iarg, 0, 0);
-      else if (yarg_nil(iarg)) arg->v_pointer=0;
-      else if (yarg_typeid(iarg)==Y_POINTER) arg->v_pointer=ygets_p(iarg);
-      else y_error("Unimplemented GIArgument array type");
-      break;
-    case 1:
-      arg->v_pointer=ygeta_l(iarg, 0, 0);
-      break;
-    case 2:
-      arg->v_pointer=ygeta_d(iarg, 0, 0);
-      break;
-    case 3:
-      arg->v_pointer=ygeta_z(iarg, 0, 0);
-      break;
-    default:
-      y_error("Unimplemented GIArgument array type");
-    }
-    break;
+
+  case GI_TYPE_TAG_ARRAY: {
+    //gint alen;
+    GY_DEBUG("Getting Array argument:\n");
+    GY_DEBUG("   length            : %d\n",
+	     g_type_info_get_array_length(info));
+    GY_DEBUG("   fixed_size        : %d\n",
+	     g_type_info_get_array_fixed_size(info));
+    GY_DEBUG("   is_zero_terminated: %d\n",
+	     g_type_info_is_zero_terminated(info));
+    GY_DEBUG("   type              : %d\n",
+	     g_type_info_get_array_type(info));
+    GITypeInfo * cellinfo = g_type_info_get_param_type(info, 0);
+    GITypeTag ctag = g_type_info_get_tag(cellinfo);
+    GY_DEBUG("   cell data type    : %s\n", g_type_tag_to_string(ctag));
+    long ntot=0;
+
+    switch (g_type_info_get_array_type (info)) {
+      case GI_ARRAY_TYPE_C:
+	if (yarg_nil(iarg)) {
+	  arg->v_pointer=0;
+	  break;
+	}
+	if (yarg_typeid(iarg)==Y_POINTER) {
+	  arg->v_pointer=ygets_p(iarg);
+	  break;
+	}
+	switch (ctag) {
+	case GI_TYPE_TAG_VOID:
+	  if (yarg_nil(iarg)) arg->v_pointer=NULL;
+	  else y_error("unimplemented void... type (?!)");
+	  break;
+
+	/* case GI_TYPE_TAG_BOOLEAN: */
+	/*   arg->v_boolean=yarg_true(iarg); */
+	/*   break; */
+	case GI_TYPE_TAG_INT8:
+	  arg->v_pointer=ygeta_gint8(iarg, &ntot, 0);
+	  break;
+	case GI_TYPE_TAG_UINT8:{
+	  guint8* tmp=ygeta_guint8(iarg, &ntot, 0);
+	  GY_DEBUG("Array size: %ld\n", ntot);
+	  GY_DEBUG("First value in array: %d\n", tmp[0]);
+	  GY_DEBUG("Last value in array: %d\n", tmp[ntot-1]);
+	  arg->v_pointer=malloc(ntot*sizeof(guint8));
+	  memcpy(arg->v_pointer, tmp, ntot*sizeof(guint8));
+	  break;}
+
+	case GI_TYPE_TAG_INT16:
+	  arg->v_pointer=ygeta_gint16(iarg, &ntot, 0);
+	  break;
+	case GI_TYPE_TAG_UINT16:
+	  arg->v_pointer=ygeta_guint16(iarg, &ntot, 0);
+	  break;
+
+	case GI_TYPE_TAG_INT32:
+	  arg->v_pointer=ygeta_gint32(iarg, &ntot, 0);
+	  break;
+	case GI_TYPE_TAG_UINT32:
+	  arg->v_pointer=ygeta_guint32(iarg, &ntot, 0);
+	  break;
+
+#if GY_HAVE_INT64
+	case GI_TYPE_TAG_INT64:
+	  arg->v_pointer=ygeta_gint64(iarg, &ntot, 0);
+	  break;
+
+	case GI_TYPE_TAG_UINT64:
+	  arg->v_pointer=ygeta_guint64(iarg, &ntot, 0);
+	  break;
+#endif
+
+	case GI_TYPE_TAG_FLOAT:
+	  arg->v_pointer=ygeta_f(iarg, &ntot, 0);
+	  break;
+	case GI_TYPE_TAG_DOUBLE:
+	  arg->v_pointer=ygeta_d(iarg, &ntot, 0);
+	  break;
+
+	case GI_TYPE_TAG_UTF8:
+	case GI_TYPE_TAG_FILENAME:
+	  arg->v_pointer=ygeta_q(iarg, &ntot, 0);
+	  GY_DEBUG( "argument: %s\n", arg->v_string);
+	  break;
+
+	default:
+	  y_error("Unimplemented GIArgument array type");
+	}
+	GY_DEBUG("Got array pointer: %p\n", arg->v_pointer);
+	break;
+      default:
+	y_error("unimplemented array type");
+      }
+    g_base_info_unref(cellinfo);
+    break;}
   case GI_TYPE_TAG_INTERFACE:
     itrf = g_type_info_get_interface(info);
     switch(g_base_info_get_type (itrf)) {
@@ -99,6 +179,7 @@ void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) {
       }
       arg->v_pointer=yget_gy_Object(iarg)->object;
       break;
+
     case GI_INFO_TYPE_FLAGS:
     case GI_INFO_TYPE_ENUM:
       switch (g_enum_info_get_storage_type (itrf)) {
@@ -143,7 +224,7 @@ void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) {
   GITypeTag type = g_type_info_get_tag(info);
   GIBaseInfo * itrf;
   gy_Object * outObject=NULL;
-
+  GY_DEBUG("Pushing %s from Argument\n", g_type_tag_to_string(type));
   // const char * nspace, * name_with_namespace, * name;
   switch(type) {
   case GI_TYPE_TAG_VOID:

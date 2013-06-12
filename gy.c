@@ -273,7 +273,7 @@ gy_Object_extract(void *obj, char * name)
 
   if (isstruct || isobject || isitrf) {
 
-    GY_DEBUG("Looking for symbol %s in %s\n",
+    GY_DEBUG("Looking for method %s in %s\n",
 	   name,
 	   g_base_info_get_name(o->info));
     if (isobject)
@@ -289,13 +289,13 @@ gy_Object_extract(void *obj, char * name)
 	   (next = g_object_info_get_parent(cur))) {
       g_base_info_unref(cur);
       cur = next;
-      GY_DEBUG("Looking for symbol %s in parent %s\n",
+      GY_DEBUG("Looking for method %s in parent %s\n",
 	     name,
 	     g_base_info_get_name(cur));
       info = g_object_info_find_method (cur, name);
     }
     if (info) {
-      GY_DEBUG("Symbol %s found in %s\n",
+      GY_DEBUG("Method %s found in %s\n",
 	     name,
 	     g_base_info_get_name(cur));
       g_base_info_unref(cur);
@@ -313,6 +313,9 @@ gy_Object_extract(void *obj, char * name)
 
   /// Look for property
   if (isobject || isitrf) {
+    GY_DEBUG("Looking for property %s in %s\n",
+	     name,
+	     g_base_info_get_name(o->info));
     ystring_t name2 = p_strcpy(name);
     GIPropertyInfo * cur = gy_base_info_find_property_info(o->info, name2);
     if (cur) {
@@ -675,7 +678,7 @@ gy_Object_eval(void *obj, int argc)
 					     n_out,
 					     &retval,
 					     &err);
-  GY_DEBUG("done.");
+  GY_DEBUG("done.\n");
 
   sigaction(SIGABRT, oldact, NULL);
 
@@ -993,3 +996,14 @@ Y_gy_thread(int argc) {
   sleep(100);
 }
 */
+
+// This code is never used: it serves only the purpose of doing some compile
+// time tests.
+void
+__gy_build_bug_on()
+{
+  GY_BUILD_BUG_ON(sizeof(char)!=1);
+  GY_BUILD_BUG_ON(sizeof(short)!=2);
+  GY_BUILD_BUG_ON(sizeof(int)!=4);
+  GY_BUILD_BUG_ON(sizeof(void*)!=sizeof(long));
+}
