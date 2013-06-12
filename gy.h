@@ -114,3 +114,46 @@ GIPropertyInfo * gy_base_info_find_field_info(GIBaseInfo * objectinfo,
 void gy_value_init(GValue* val, GITypeInfo *info);
 void gy_value_set_iarg(GValue* val, GITypeInfo * info, int iarg);
 void gy_value_push(GValue * pval, GITypeInfo * info, gy_Object *o);
+
+// This should be OK for most mainstream architectures, but...
+#define GY_BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+#define GY_HAVE_INT64 GLIB_SIZEOF_LONG==8
+#define ygets_gint8(iarg)   ((gint8)  ygets_c(iarg))
+#define ygets_guint8(iarg)  ((guint8) ygets_uc(iarg))
+#define ygets_gint16(iarg)  ((gint16) ygets_s(iarg))
+#define ygets_guint16(iarg) ((guint16)ygets_s(iarg))
+#define ygets_gint32(iarg)  ((gint32) ygets_i(iarg))
+#define ygets_guint32(iarg) ((guint32)ygets_i(iarg))
+#if GY_HAVE_INT64
+# define ygets_gint64(iarg) ((gint64)ygets_l(iarg))
+# define ygets_guint64(iarg) ((guint64)ygets_l(iarg))
+#else
+# define ygets_gint64(iarg) 1/0
+# define ygets_guint64(iarg) 1/0
+#endif
+#define ygeta_gint8(iarg, ntot, dims)   ((gint8*)  ygeta_c(iarg, ntot, dims))
+#define ygeta_guint8(iarg, ntot, dims)  ((guint8*) ygeta_uc(iarg, ntot, dims))
+#define ygeta_gint16(iarg, ntot, dims)  ((gint16*) ygeta_s(iarg, ntot, dims))
+#define ygeta_guint16(iarg, ntot, dims) ((guint16*)ygeta_s(iarg, ntot, dims))
+#define ygeta_gint32(iarg, ntot, dims)  ((gint32*) ygeta_i(iarg, ntot, dims))
+#define ygeta_guint32(iarg, ntot, dims) ((guint32*)ygeta_i(iarg, ntot, dims))
+#if GY_HAVE_INT64
+# define ygeta_gint64(iarg, ntot, dims)  ((gint64*)ygeta_l(iarg, ntot, dims))
+# define ygeta_guint64(iarg, ntot, dims) ((guint64*)ygeta_l(iarg, ntot, dims))
+#else
+# define ygeta_gint64(iarg, ntot, dims) 1/0
+# define ygeta_guint64(iarg, ntot, dims) 1/0
+#endif
+#define ypush_gint8(dims)   ((gint8*)  ypush_c(dims))
+#define ypush_guint8(dims)  ((guint8*) ypush_uc(dims))
+#define ypush_gint16(dims)  ((gint16*) ypush_s(dims))
+#define ypush_guint16(dims) ((guint16*)ypush_s(dims))
+#define ypush_gint32(dims)  ((gint32*) ypush_i(dims))
+#define ypush_guint32(dims) ((guint32*)ypush_i(dims))
+#if GY_HAVE_INT64
+# define ypush_gint64(dims)  ((gint64*) ypush_l(dims))
+# define ypush_guint64(dims) ((guint64*) ypush_l(dims))
+#else
+# define ypush_gint64(dims)  1/0
+# define ypush_guint64(dims) 1/0
+#endif

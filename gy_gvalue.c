@@ -160,27 +160,34 @@ void
 gy_value_push(GValue * pval, GITypeInfo * info, gy_Object* o)
 {
   GITypeTag tag = g_type_info_get_tag(info);
+  GY_DEBUG("Pushing %s from GValue\n", g_type_tag_to_string(tag));
   switch (tag) {
     /* basic types */
-  case GI_TYPE_TAG_VOID:
+  case GI_TYPE_TAG_VOID:{
+    GITypeInfo * cellinfo = g_type_info_get_param_type(info, 0);
+    if (cellinfo) {
+      GITypeTag ctag = g_type_info_get_tag(cellinfo);
+      GY_DEBUG("void contains %s\n", g_type_tag_to_string(ctag));
+      g_base_info_unref(cellinfo);
+    }
     ypush_nil();
-    break;
+    break;}
   case GI_TYPE_TAG_BOOLEAN:
     *ypush_c(NULL) = g_value_get_boolean(pval);
     break;
   case GI_TYPE_TAG_INT8:
-    *ypush_c(NULL) = g_value_get_schar(pval);
+    *ypush_gint8(NULL) = g_value_get_schar(pval);
     break;
   case GI_TYPE_TAG_UINT8:
-    *ypush_uc(NULL)= g_value_get_uchar(pval);
+    *ypush_guint8(NULL)= g_value_get_uchar(pval);
     break;
   case GI_TYPE_TAG_INT16:
   case GI_TYPE_TAG_INT32:
-    *ypush_i(NULL) = g_value_get_int(pval);
+    *ypush_gint32(NULL) = g_value_get_int(pval);
     break;
   case GI_TYPE_TAG_UINT16:
   case GI_TYPE_TAG_UINT32:
-    *ypush_i(NULL) = g_value_get_uint(pval);
+    *ypush_guint32(NULL) = g_value_get_uint(pval);
     break;
   case GI_TYPE_TAG_INT64:
     ypush_long(g_value_get_int64(pval));
@@ -200,6 +207,10 @@ gy_value_push(GValue * pval, GITypeInfo * info, gy_Object* o)
   case GI_TYPE_TAG_UTF8:
   case GI_TYPE_TAG_FILENAME:
     *ypush_q(NULL) = p_strcpy(g_value_get_string(pval));
+    break;
+    /* array types */
+  case GI_TYPE_TAG_ARRAY:
+    y_error("array");
     break;
     /* interface types */
   case GI_TYPE_TAG_INTERFACE:
