@@ -23,7 +23,7 @@
  */
 
 
-#include "gy.i"
+#include "gy_gtk.i"
 
 // do stuff should perhaps not in itself last too long (at most a few seconds)
 func do_stuff(void) {"do stuff";}
@@ -51,7 +51,6 @@ Gtk=gy.Gtk;
 Gtk.init(0,);
 gy_setlocale;
 win=Gtk.Window.new(Gtk.WindowType.toplevel);
-gy_gtk_window_suspend, win;
 box=Gtk.Box.new(Gtk.Orientation.horizontal, 0);
 noop, win.add(box);
 but=Gtk.Button.new_with_label("start");
@@ -62,5 +61,5 @@ noop, box.pack_start(but, 0, 0, 0);
 gy_signal_connect, but, "clicked", bigloop_stop;
 
 // realize window and gyterm at once.
-win.show_all();
+gy_gtk_main, win, on_delete=1;
 gyterm;
