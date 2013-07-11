@@ -23,7 +23,7 @@
     along with gy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "gy.i"
+#include "gy_gtk.i"
 
 func gyhelloworld_print(wdg, event, userdata) {
   "Hello World!";
@@ -43,5 +43,7 @@ func gyhelloworld(glade) {
     noop, win.add(button);
     gy_signal_connect, button, "clicked", gyhelloworld_print;
   }
-  gy_gtk_main, win;
+  gy_gtk_main, win, on_delete=2;
 }
+
+gyhelloworld;
