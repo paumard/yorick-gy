@@ -17,7 +17,8 @@ TGT=$(DEFAULT_TGT)
 PKG_NAME=gy
 PKG_I=gy0.i
 
-OBJS=gy.o gy_repository.o gy_argument.o gy_gvalue.o gy_callback.o gy_property.o
+OBJS=gy.o gy_repository.o gy_argument.o gy_gvalue.o gy_callback.o \
+	gy_property.o gy_typelib.o gy_object.o
 
 # change to give the executable a name other than yorick
 PKG_EXENAME=yorick

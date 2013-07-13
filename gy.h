@@ -67,6 +67,8 @@ void gy_Typelib_print(void *obj);
 void gy_Typelib_extract(void *, char *);
 void gy_Typelib_free(void *obj) ;
 void gy_Typelib_print(void *obj);
+void gy_Typelib_list(int argc);
+int yarg_gy_Typelib(int iarg);
 gy_Typelib* yget_gy_Typelib(int iarg) ;
 gy_Typelib* ypush_gy_Typelib() ;
 
@@ -81,7 +83,7 @@ typedef struct _gy_Repository {
 void gy_Repository_print(void *obj);
 void gy_Repository_eval(void *obj, int argc);
 void gy_Repository_extract(void *, char *);
-int yarg_gy_Object(int iarg) ;
+int yarg_gy_Repository(int iarg);
 gy_Repository* yget_gy_Repository(int iarg) ;
 gy_Repository* ypush_gy_Repository();
 
@@ -91,6 +93,7 @@ void gy_Object_free(void *obj);
 void gy_Object_print(void *obj);
 void gy_Object_eval(void *obj, int argc);
 void gy_Object_extract(void *, char *);
+void gy_Object_list(int argc);
 
 void gy_Argument_getany(GIArgument * arg, GITypeInfo * info, int iarg) ;
 void gy_Argument_pushany(GIArgument * arg, GITypeInfo * info, gy_Object* o) ;
