@@ -250,7 +250,7 @@ Y_gy_signal_connect(int argc) {
     long dims[Y_DIMSIZE]={1,1};
     *ypush_q(dims)=p_strcpy("noop, __gy_gtk_builder"
 			    ".connect_signals_full("
-			    "gy_gtk_builder_connector(),)");
+			    "__gy_gtk_builder_connector(),)");
     yexec_include(0, 1);
     ypush_nil();
     return;
@@ -370,7 +370,7 @@ gyGtkBuilderConnectFunc(void *builder,
 }
 
 void
-Y_gy_gtk_builder_connector(int argc)
+Y___gy_gtk_builder_connector(int argc)
 {
   ypush_gy_Object()->object = (void*)&gyGtkBuilderConnectFunc;
 }

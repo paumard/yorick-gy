@@ -35,8 +35,11 @@ void gy_Repository_print(void *obj){
     y_print("gy_Repository without any loaded namespaces", 0);
     return;
   }
-  y_print("gy_Repository with loaded namespaces:", 1);
-  for (;*nspcs;++nspcs) y_print(*nspcs, 1);
+  y_print("gy_Repository with loaded namespaces: ", 1);
+  for (;*nspcs;++nspcs) {
+    y_print(*nspcs, 1);
+    y_print(" ", 1);
+  }
 }
 
 void

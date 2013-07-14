@@ -48,12 +48,41 @@ static y_userobj_t gy_Object_obj =
 
 void gy_Object_free(void *obj) {
   gy_Object* o = (gy_Object*) obj;
-  if (o->info) g_base_info_unref(o->info);
   if (o->object) {
     // I don't know how reference counting works here...
     // if (GI_IS_STRUCT_INFO(o->info)) g_free(o->object);
-    if (o->info && GI_IS_OBJECT_INFO(o->info)) g_object_unref(o->object);
+    if (o->info && GI_IS_OBJECT_INFO(o->info)) {
+      GY_DEBUG("Unref'ing GObject %p with refcount %d... ",
+	       o->object, o->object->ref_count);
+      g_object_unref(o->object);
+      o->object=NULL;
+      GY_DEBUG("done.\n");
+    } else {
+      if (gy_debug()) {
+	fprintf(stderr,"Object %p not unref'ed\n", o->object);
+	if (o->info && GI_IS_TYPE_INFO(o->info)) {
+	  fprintf(stderr, "Object is ");
+	  GITypeTag type = g_type_info_get_tag(o->info);
+	  switch(type) {
+	  case GI_TYPE_TAG_GLIST:
+	    fprintf(stderr, "double linked list", 0);
+	    break;
+	  case GI_TYPE_TAG_GSLIST:
+	    fprint(stderr, "single linked list", 0);
+	    break;
+	  default:
+	    fprintf(stderr, "unhandled TypeInfo");
+	  }
+	  fprintf(stderr,
+		  "gy object name: %s, type: %s, namespace: %s\n",
+		  g_base_info_get_name(o->info),
+		  g_info_type_to_string(g_base_info_get_type (o->info)),
+		  g_base_info_get_namespace (o->info));
+	}
+      }
+    }
   }
+  if (o->info) g_base_info_unref(o->info);
 }
 
 void gy_Object_print(void *obj) {
@@ -191,8 +220,10 @@ gy_Object_extract(void *obj, char * name)
 	  (name_dn && !strcmp(g_base_info_get_name (ci), name_dn)) ) {
 	wtype=g_value_info_get_value (ci);
 	tfound=1;
+	g_base_info_unref(ci);
 	break;
       }
+      g_base_info_unref(ci);
     }
     p_free(name_dn);
     if (tfound) ypush_long(wtype);
@@ -438,7 +469,15 @@ gy_Object_eval(void *obj, int argc)
 	  g_object_newv(g_registered_type_info_get_g_type(o->info),
 			n_parameters,
 			parameters);
-	g_object_ref_sink(out->object);
+	g_free(parameters);
+	GY_DEBUG("Newly created object has refcount=%d and %d floating ref\n",
+		 out->object->ref_count, g_object_is_floating(out->object));
+	if (G_IS_INITIALLY_UNOWNED(out->object)) {
+	  g_object_ref_sink(out->object);
+	}
+	if (!out->object->ref_count) g_object_ref(out->object);
+	GY_DEBUG("Newly created object has refcount=%d\n",
+		 out->object->ref_count);
 	return;
       } else if (isstruct) {
 	GY_DEBUG("Instanciating C struct\n");
@@ -527,6 +566,7 @@ gy_Object_eval(void *obj, int argc)
 	  if (!g_field_info_set_field(cur, out->object, &rarg))
 	    y_error("set field failed");
 	}
+	g_base_info_unref(ti);
       } else y_errorq("%s is neither property not field", name);
       --iarg;
     }
@@ -822,4 +862,10 @@ gy_Object_list(int argc) {
       } else printf("Object has no parent\n");
     }
   }
+}
+
+void
+Y_gy_object_free(int argc)
+{
+  g_free(yget_gy_Object(0)->object);
 }
