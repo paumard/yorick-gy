@@ -95,4 +95,14 @@ extern gy_id;
    SEE ALSO: gy
 */
 
-extern gy_gtk_builder_connector;
+extern __gy_gtk_builder_connector;
+/* DOCUMENT __gy_gtk_builder_connector()
+    Return Pointer to C function used by gy_signal_connect when passed
+    a Gtk.Buildervobject. Internal use only.
+ */
+
+extern gy_object_free;
+/* DOCUMENT gy_object_free, obj
+    Free object pointed to by gy object OBJ. May be necessary to
+    prevent some memory leaks. Experimental: Use with caution.
+*/
