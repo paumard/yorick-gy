@@ -761,7 +761,7 @@ func gy_gtk_ywindow_connect(&yid, win, da, slabel, xlabel, ylabel, dpi=, style=,
  */
 {
   extern __gywindow;
-  if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
+  if (is_void(yid)) yid=gy_gtk_ywindow_free_id(-1);
   if (is_void(yid)) error, "unable to find free id";
   
   if (is_void(dpi)) dpi=75;
@@ -820,7 +820,7 @@ func gy_gtk_ywindow(&yid, dpi=, width=, height=, style=,
   if (is_void(dpi)) dpi=75;
   //if (is_void(width)) width=long(6*dpi);
   //if (is_void(height)) height=long(6*dpi);
-  if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
+  if (is_void(yid)) yid=gy_gtk_ywindow_free_id(-1);
   if (is_void(yid)) error, "unable to find free id";
   
   box = Gtk.Box.new(Gtk.Orientation.vertical, 0);
@@ -968,7 +968,7 @@ func __gywindow_init(&yid, dpi=, width=, height=, style=,
                      on_realize=, on_configure=, grab=)
 {
   extern __gywindow, adj;
-  if (is_void(yid)) yid=gy_gtk_ywindow_free_id();
+  if (is_void(yid)) yid=gy_gtk_ywindow_free_id(-1);
   if (is_void(yid)) error, "unable to find free id";
   win = Gtk.Window.new(Gtk.WindowType.toplevel);
   noop, win.set_default_size(450, 488);
@@ -1144,22 +1144,44 @@ func __gywindow_find_by_yid(yid)
   }
 }
 
-func gy_gtk_ywindow_free_id(void)
-/* DOCUMENT yid = gy_gtk_ywindow_free_id();
+func gy_gtk_ywindow_free_id(start)
+/* DOCUMENT yid = gy_gtk_ywindow_free_id( start );
    
-     Find Yorick window ID not yet used by a gywindow. It is not
-     guaranteed that this id is not use by a non-GTK Yorick window.
+     Find a free Yorick window ID.
 
-   SEE ALSO: gywindow
+     A window ID is considered free if the window is not realized
+     (which is checked using window_geometry()) and it has not yet
+     been registered as a gywindow.
+
+     The 64 possible window IDs (0 to 63) are probed starting from
+     START. If START<0, window IDs are probed in desceding order
+     starting from 64-START. For instance, if START==42, the IDs will
+     be probed in this order: 42, 43, ..., 62, 63, 0, 1, ..., 40, 41.
+
+     If no free ID can be found, gy_gtk_ywindow_free_id() returns [].
+          
+   SEE ALSO: gywindow, window, window_geometry
 */
 {
-  extern __gywindow;
-  n = __gywindow(*);
-  free = array(1, 64);
-  for (i=1; i<=n; ++i) free(__gywindow( (nothing=i) ).yid+1)=0;
-  ids = where(free);
-  if (!numberof(ids)) return;
-  return ids(0)-1;
+  if (is_void(start)) start=0;
+  if (start >= 0) dir = 1;
+  else { dir = -1; start = 64+start; }
+  n=start;
+
+  // window_geometry returns [] if the window is not realized, but the
+  // documentation says it return all 0. Let's check both conditions.
+  // A window ID may also have alreay been registered by gy_gtk but
+  // not be realized yet.
+  while ((!is_void((a=window_geometry(n))) &&
+          !allof(a==0)) ||
+         !is_void(__gywindow_find_by_yid(n))) {
+    n += dir;
+    if (n==64) n=0;
+    else if (n==-1) n=63;
+    if (n==start) return [];
+  }
+  
+  return n;
 }
 
 func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
