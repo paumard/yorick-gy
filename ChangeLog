@@ -1,0 +1,28 @@
+Version 0.0.2
+    * Don't start the loop in gy_gtk.i, instead start it in gy_gtk_main
+	and stop it using gy_gtk_maybe_stop in hide/destroy callbacks
+	if there are no remaining windows shown. Codes that relied on the
+	loop running constantly must call gy_gtk_main somewhere.
+    * gy_gtk_suspend is deprecated in favor of gy_gtk_hide_on_delete.
+    * gy_gtk_ywindow_free_id check also regular yorick windows.
+    * Fix the majority o memory leaks affecting cubeview. Some
+	remain. Provide gy_object_free to free objects without ref
+	counter.
+    * split gy.c into many sub-pieces.
+    * fix autoloads (only support functions)
+    * update examples relative to recent changes
+    * better (but unfinished) support for array types
+    * ypush/get_g(u)int?? macros
+    * allow accessing G(S)List data by index
+    * improve G(S)List support, add .size member
+    * fix hide_on_delete behaviour for gycmap
+    * add gy_gtk_mouse(), which installs itself as mouse()
+    * gy_gtk_idler, 0 now stops the loop in all cases before reinstanciating
+	itself
+    * Small bug fixes.
+
+ -- Mon Jul 22 14:20:30 2013 -0400, Thibaut Paumard <paumard@users.sourceforge.net>
+
+Version 0.0.1
+    * First release
+ -- Fri Jun 7 16:58:36 2013 +0200, Thibaut Paumard <paumard@users.sourceforge.net>
