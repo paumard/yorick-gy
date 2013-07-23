@@ -205,7 +205,7 @@ func gy_gtk_hide_on_delete(wdg, evt, udata)
   return 1;
 }
 
-func gy_gtk_suspend (wdg)
+func gy_gtk_suspend (wdg, evt, udata)
 /* DOCUMENT deprecated: gy_gtk_suspend, wdg
      This was used when gy_gtk_main used to call gy.Gtk.main().
    SEE ALSO: gy_gtk_hide_on_delete, gy_gtk_destroy_on_delete
@@ -216,7 +216,8 @@ func gy_gtk_suspend (wdg)
     __gy_gtk_suspend_warned=1;
     write, "WARNING: gy_gtk_suspend is deprecated, please upgrade to the new API\n";
   }
-  gy_gtk_hide_on_delete, wdg, 1;
+  if (is_void(evt)) evt=1;
+  return gy_gtk_hide_on_delete(wdg, evt, udata);
 }
 
 
