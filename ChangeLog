@@ -1,3 +1,8 @@
+Version 0.0.3
+    * fix "implicit conversion from integer to pointer"
+    * give the choice of stopping the loop in on_error
+ -- Thibaut Paumard <paumard@users.sourceforge.net>  Thu, 25 Jul 2013 15:59:40 +0200
+
 Version 0.0.2
     * Don't start the loop in gy_gtk.i, instead start it in gy_gtk_main
 	and stop it using gy_gtk_maybe_stop in hide/destroy callbacks
