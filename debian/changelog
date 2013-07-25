@@ -1,3 +1,9 @@
+yorick-gy (0.0.3-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Thibaut Paumard <thibaut@debian.org>  Thu, 25 Jul 2013 16:03:16 +0200
+
 yorick-gy (0.0.2-1) unstable; urgency=low
 
   * New upstream release

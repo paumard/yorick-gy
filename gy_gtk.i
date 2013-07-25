@@ -220,7 +220,6 @@ func gy_gtk_suspend (wdg, evt, udata)
   return gy_gtk_hide_on_delete(wdg, evt, udata);
 }
 
-
 func gy_gtk_destroy_on_delete(wdg, evt, udata)
 /* DOCUMENT gy_gtk_destroy_on_delete, window, [evt, data]
 
@@ -1244,7 +1243,7 @@ func gywindow(&yid, freeid=, dpi=, width=, height=, style=,
 
 //// error message
 
-func gyerror(msg)
+func gyerror(msg, buttons=)
 /* DOCUMENT gyerror, msg
      Display error message in a Gtk window.
      
@@ -1256,14 +1255,19 @@ func gyerror(msg)
  */
 {
   aspect = 1.61803398875; // nombre d'or
+  if (is_void(buttons)) buttons = Gtk.ButtonsType.CLOSE;
   dmsg = Gtk.MessageDialog("message-type", Gtk.MessageType.error,
-                           buttons=Gtk.ButtonsType.close,
+                           buttons=buttons,
                            text=msg);
   noop, dmsg.set_title("Yorick error");
   noop, dmsg.set_size_request(long(200*aspect), 200);
-  noop, dmsg.run();
+  ans = dmsg.run();
   noop, dmsg.destroy();
   gy_gtk_idler_flush;
+<<<<<<< HEAD
+=======
+  return ans;
+>>>>>>> upstream/0.0.3
 }
 
 //// mouse wrapper
@@ -1453,9 +1457,21 @@ func gy_gtk_idler (start_stop)
 
 func __gy_gtk_on_error
 {
+  extern after_error;
   __gywindow_on_error;
+<<<<<<< HEAD
   gyerror, catch_message;
   gy_gtk_idler;
+=======
+  ans = gyerror(catch_message+"\n\nDo you want to continue?",
+                buttons=Gtk.ButtonsType.YES_NO);
+  if (ans==Gtk.ResponseType.YES) gy_gtk_idler;
+  else{
+    gy_gtk_idler, 0;
+    after_error=[];
+    write, "gy_gtk_main loop stopped on user request";
+  }
+>>>>>>> upstream/0.0.3
 }
 
 func gy_gtk_idler_flush

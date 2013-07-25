@@ -160,3 +160,7 @@ void gy_value_push(GValue * pval, GITypeInfo * info, gy_Object *o);
 # define ypush_gint64(dims)  1/0
 # define ypush_guint64(dims) 1/0
 #endif
+
+// strtolower with built-in allocation
+// use p_free() to free
+char * p_strtolower(const char * in);
