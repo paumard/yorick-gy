@@ -45,7 +45,7 @@ void
 Y_gy_list(int argc)
 {
   if (yarg_gy_Object(argc-1)) gy_Object_list(argc);
-  else gy_Typelist_list(argc);
+  else gy_Typelib_list(argc);
 }
 
 static gboolean _gy_debug = 0;
