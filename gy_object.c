@@ -68,7 +68,7 @@ void gy_Object_free(void *obj) {
 	    fprintf(stderr, "double linked list", 0);
 	    break;
 	  case GI_TYPE_TAG_GSLIST:
-	    fprint(stderr, "single linked list", 0);
+	    fprintf(stderr, "single linked list", 0);
 	    break;
 	  default:
 	    fprintf(stderr, "unhandled TypeInfo");

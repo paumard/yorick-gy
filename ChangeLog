@@ -1,3 +1,7 @@
+Version 0.0.4
+    * fix typo in gy_object.c: fprint -> fprintf
+ -- Thibaut Paumard <paumard@users.sourceforge.net>  Mon, 29 Jul 2013 10:29:57 +0200
+
 Version 0.0.3
     * fix "implicit conversion from integer to pointer"
     * give the choice of stopping the loop in on_error
