@@ -5,3 +5,8 @@
 
 override_dh_auto_install-arch:
 	dh_installyorick
+
+override_dh_auto_clean:
+	$(MAKE) Y_MAKEDIR=/usr/lib/yorick Y_EXE=/usr/bin/yorick distclean
+
+override_dh_auto_test:
