@@ -1,0 +1,474 @@
+---
+layout: default
+headline: GObject Introspection and Gtk graphical user interfaces
+---
+<p class="sectop">Back to <a href="index.html">library index</a>.</p>
+<p class="sectop">Package gy_gtk (in gy_gtk.i) - </p>
+<p class="sectop">Index of documented functions or symbols:</p>
+<div class="ndex0s">
+  <div class="ndex1">
+    <h3>G</h3>
+    <p><a href="gy_gtk.html#Gtk">Gdk</a></p>
+    <p><a href="gy_gtk.html#Gtk">GdkPixbuf</a></p>
+    <p><a href="gy_gtk.html#Gtk">GLib</a></p>
+    <p><a href="gy_gtk.html#Gtk">Gtk</a></p>
+    <p><a href="gy_gtk.html#gycmap">gycmap</a></p>
+    <p><a href="gy_gtk.html#gyerror">gyerror</a></p>
+    <p><a href="gy_gtk.html#gyterm">gyterm</a></p>
+    <p><a href="gy_gtk.html#gywindow">gywindow</a></p>
+    <p><a href="gy_gtk.html#gywinkill">gywinkill</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_allowgrab">gy_gtk_allowgrab</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_before_init">gy_gtk_before_init</a></p>
+  </div>
+  <div class="ndex2">
+    <p><a href="gy_gtk.html#gy_gtk_builder">gy_gtk_builder</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_destroy_on_delete">gy_gtk_destroy_on_delete</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_hide_on_delete">gy_gtk_hide_on_delete</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_idler">gy_gtk_idler</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_idler_flush">gy_gtk_idler_flush</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_idler_maybe_stop">gy_gtk_idler_maybe_stop</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_idler_period">gy_gtk_idler_period</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_before_init">gy_gtk_init</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_main">gy_gtk_main</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_mouse">gy_gtk_mouse</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_suspend">gy_gtk_suspend</a></p>
+  </div>
+  <div class="ndex3">
+    <p><a href="gy_gtk.html#gy_gtk_xid">gy_gtk_xid</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_ycmd">gy_gtk_ycmd</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_ycmd_connect">gy_gtk_ycmd_connect</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_ywindow">gy_gtk_ywindow</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_ywindow_connect">gy_gtk_ywindow_connect</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_ywindow_free_id">gy_gtk_ywindow_free_id</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_ywindow_mouse_handler">gy_gtk_ywindow_mouse_handler</a></p>
+    <p><a href="gy_gtk.html#gy_gtk_ywindow_reinit">gy_gtk_ywindow_reinit</a></p>
+    <h3>Y</h3>
+    <p><a href="gy_gtk.html#Y_GLADE">Y_DATA</a></p>
+    <p><a href="gy_gtk.html#Y_GLADE">Y_GLADE</a></p>
+  </div>
+</div>
+<div class="docsee">
+  <h3>Gdk</h3><p>SEE: <a href="#Gtk">Gtk</a></p>
+</div>
+<div class="docsee">
+  <h3>GdkPixbuf</h3><p>SEE: <a href="#Gtk">Gtk</a></p>
+</div>
+<div class="docsee">
+  <h3>GLib</h3><p>SEE: <a href="#Gtk">Gtk</a></p>
+</div>
+<div class="docblock"><a name="Gtk"></a><h3>Gtk</h3>
+  <pre>DOCUMENT Gtk, Gdk, GdkPixbuf, GLib
+  gy namespaces.</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a></p>
+</div>
+<div class="docblock"><a name="gycmap"></a><h3>gycmap</h3>
+  <pre>DOCUMENT gycmap
+      or gycmap, callback
+
+ A graphical wrapper around the cmap family of functions, gycmap
+ allows the user to interactively select a color table by viewing
+ sample colorbars and clicking on the bar of her choice. If an
+ image is displayed in the current Yorick graphic window, the new
+ colormap is applied immediately. cmap_test can be used for
+ displaying a test image.
+
+ If CALLBACK is specified, it is called as:
+   callback, fonction, colormap;
+ each time a new colormap is selected instead of simply setting the
+ color map.
+
+ gycmap requires a recent version of Yorick (from git, as of
+ 2013-04).
+</pre>
+  <p>SEE ALSO: cmap, cmap_test</p>
+</div>
+<div class="docblock"><a name="gyerror"></a><h3>gyerror</h3>
+  <pre>DOCUMENT gyerror, msg
+  Display error message in a Gtk window.
+  
+  gy_gtk.i sets after_error so that all error messages are
+  redirected to gyerror: it is usually not necessary to call
+  gyerror directly.
+</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a></p>
+</div>
+<div class="docblock"><a name="gyterm"></a><h3>gyterm</h3>
+  <pre>DOCUMENT gyterm
+  Open a window containing a single line in which arbitrary Yorick
+  commands can be typed. If you want to embed gyterm in another GUI, see
+  gy_gtk_ycmd and gy_gtk_ycmd_connect.</pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, <a href="gy_gtk.html#gy_gtk_ycmd">gy_gtk_ycmd</a>, <a href="gy_gtk.html#gy_gtk_ycmd_connect">gy_gtk_ycmd_connect</a>, <a href="gy_gtk.html#gycmap">gycmap</a>, <a href="gy_gtk.html#gywindow">gywindow</a></p>
+</div>
+<div class="docblock"><a name="gywindow"></a><h3>gywindow</h3>
+  <pre>DOCUMENT gywindow, yid
+
+ When the Gtk main loop is running, the Yorick main loop is
+ stuck. This prevents things like window zooming to
+ happen. gywindow embeds Yorick window YID in a Gtk window and
+ emulates zooming etc. If YID already exists, it is first killed
+ and its content erased.
+
+ If you are interested in embedding a Yorick window in your own
+ application, have a look at gy_gtk_ywindow.
+
+KEYWORDS:
+ freeid: if true, a new ID is found using gy_gtk_ywindow_free_id.
+ dpi, width, height, style: see window
+ on_realize, on_configure, grab: see gy_gtk_window_connect
+</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gyterm">gyterm</a>, <a href="gy_gtk.html#gy_gtk_ywindow">gy_gtk_ywindow</a>, <a href="gy_gtk.html#gy_gtk_ywindow_free_id">gy_gtk_ywindow_free_id</a>, window, <a href="gy_gtk.html#gywinkill">gywinkill</a></p>
+</div>
+<div class="docblock"><a name="gywinkill"></a><h3>gywinkill</h3>
+  <pre>DOCUMENT gywinkill, yid
+  Forget all about gywindow YID.</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gywindow">gywindow</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_allowgrab"></a><h3>gy_gtk_allowgrab</h3>
+  <pre>DOCUMENT gy_gtk_allowgrab, mode
+  mode = 0: forbid grabbing the mouse.
+  mose = 1: allow grabbing.</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gywindow">gywindow</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_before_init"></a><h3>gy_gtk_before_init</h3>
+  <pre>DOCUMENT gy_gtk_init, argv
+
+  Initialize Gtk. Called automatically by #include "gy_gtk.i"
+  
+EXTERNAL VARIABLES:
+
+  If gy_gtk_before_init is a function, it is called before
+  Gtk.init_check(). This allows for instance setting the
+  application name:
+
+func gy_gtk_before_init
+   noop, gy.GLib.set_prgname("MyProg");
+   noop, gy.GLib.set_application_name("MyProg");
+  }
+  #include "gy_gtk.i"
+  </pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_builder"></a><h3>gy_gtk_builder</h3>
+  <pre>DOCUMENT builder = gy_gtk_builder(fname)
+
+ Looks for a file named FNAME in the Y_GLADE path and returns a
+ Gtk.Builder object with FNAME loaded.
+</pre>
+  <p>SEE ALSO: Y_PATH, <a href="gy.html#gy">gy</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_destroy_on_delete"></a><h3>gy_gtk_destroy_on_delete</h3>
+  <pre>DOCUMENT gy_gtk_destroy_on_delete, window, [evt, data]
+
+  If evt is void, set-up gy_gtk_destroy_on_delete as a callback for
+  the "delete-event" Gtk Window event.
+
+  If evt is not void, act as a callback: destroy the window. In
+  addition, stops the event loop if there are no visible windows
+  remaining.
+  </pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_hide_on_delete">gy_gtk_hide_on_delete</a>, <a href="gy_gtk.html#gy_gtk_idler_maybe_stop">gy_gtk_idler_maybe_stop</a>, <a href="gy_gtk.html#gy_gtk_main">gy_gtk_main</a>, <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_hide_on_delete"></a><h3>gy_gtk_hide_on_delete</h3>
+  <pre>DOCUMENT gy_gtk_destroy_on_delete, window, [evt, data]
+
+  If evt is void, set-up gy_gtk_hide_on_delete as a callback for
+  the "delete-event" Gtk Window event.
+
+  If evt is not void, act as a callback: hide the window. In
+  addition, stops the event loop if there are no visible windows
+  remaining.
+  </pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_destroy_on_delete">gy_gtk_destroy_on_delete</a>, <a href="gy_gtk.html#gy_gtk_idler_maybe_stop">gy_gtk_idler_maybe_stop</a>, <a href="gy_gtk.html#gy_gtk_main">gy_gtk_main</a>, <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_i"></a><h3>gy_gtk_i</h3>
+  <pre>DOCUMENT #include "gy_gtk.i"
+
+ gy is a Yorick plug-in around GObject-introspection. It can
+ notably be used to create Gtk GUIs from within Yorick. gy_gtk.i is
+ based on gy.i and adds convenience functions such as standard
+ event handlers for writing Gtk based graphical user interfaces
+ (GUI).
+
+
+PROVIDED APPLICATIONS
+ gy_gtk comes with a few sample GUI utilities:
+ 
+  - gyterm is a command line in a Gtk window. It is useful for
+    keeping a Yorick command line while another GUI is running.
+
+  - gycmap is a wrapper around cmap.
+
+  - gywindow is a wrapper for Yorick windows (work in progress).
+
+  - gyhelloworld is a trivial example.
+
+ gyterm and gywindow can be easily embedded in custom applications
+ (indeed, gyterm *is* embedded in both gycmap and gywindow). See
+ gy_gtk_ycmd and gy_gtk_ywindow.
+
+SIDE EFFECTS:
+ #include "gy_gtk.i" has the following side effect:
+  - the users locale is set, excluding LC_NUMERIC, using
+    gy_setlocale.
+  - mouse() is replaced by gy_gtk_mouse().
+
+ Whenever a GUI is running:
+  - gy_gtk_idler() runs repeatedly using adter(). Some functions
+    (such as mouse()) cannot run as long as this loop is running.
+  - after_error is set to a function which redirects errors to a
+    dialog and makes some clean-up.
+ See gy_gtk_main().
+
+EXAMPLE:
+ The gy source code comes with a few example scripts. Here comes a
+ basic, commented helloworld:
+ 
+ // Create widget hierarchy
+ win = Gtk.Window();
+ button = Gtk.Button(label="Hello World!");
+ noop, win.add(button);
+
+ // Write a callback
+func hello
+   "Hello World!";
+ }
+
+ // Connect callback to button event
+ gy_signal_connect, button, "clicked", hello;
+
+ // Show window
+ gy_gtk_main, win, on_delete=1;
+ </pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, <a href="gy_gtk.html#gyterm">gyterm</a>, <a href="gy_gtk.html#gycmap">gycmap</a>, <a href="gy_gtk.html#gywindow">gywindow</a>, <a href="gy_gtk.html#gy_gtk_main">gy_gtk_main</a>, and, the, C, documentation, for, the, <a href="gy_gtk.html#Gtk">Gtk</a>+, 3, API.</p>
+</div>
+<div class="docblock"><a name="gy_gtk_idler"></a><h3>gy_gtk_idler</h3>
+  <pre>DOCUMENT gy_gtk_idler, start_stop
+
+ Start or stop the gy Gtk idler, which takes care of processing the
+ Gtk events. While the idler is in place, it runs every
+ gy_gtk_idler_period seconds using after().
+
+ Errors may break the idling loop (although gy_gtk.i installs an
+ error handler which re-enables the loop). If your Gtk interface
+ appears to be frozen whereas Yorick itself is not, try
+   gy_gtk_idler, 1
+
+PARAMETER
+ start_stop: 1 to start the loop, 0 to stop it.
+
+EXTERNAL VARIABLES:
+ gy_gtk_idler_period
+</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a>, <a href="gy_gtk.html#gy_gtk_idler_period">gy_gtk_idler_period</a>, after, <a href="gy_gtk.html#gy_gtk_idler_flush">gy_gtk_idler_flush</a>, <a href="gy_gtk.html#gy_gtk_idler_maybe_stop">gy_gtk_idler_maybe_stop</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_idler_flush"></a><h3>gy_gtk_idler_flush</h3>
+  <pre>DOCUMENT gy_gtk_idler_flush
+  Process all pending events in the Gtk+ 3 event queue.</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_idler">gy_gtk_idler</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_idler_maybe_stop"></a><h3>gy_gtk_idler_maybe_stop</h3>
+  <pre>DOCUMENT gy_gtk_idler_maybe_stop
+  Stop the event handler if there remains no window visible.
+  This should always be called in your delete-event handler.</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_main">gy_gtk_main</a>, <a href="gy_gtk.html#gy_gtk_hide_on_delete">gy_gtk_hide_on_delete</a>, <a href="gy_gtk.html#gy_gtk_destroy_on_delete">gy_gtk_destroy_on_delete</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_idler_period"></a><h3>gy_gtk_idler_period</h3>
+  <pre>DOCUMENT gy_gtk_idler_period
+ gy_gtk_idler repeatedly reschedules using after for running every
+ gy_gtk_idler_period seconds. Default: 0.05. You may set this
+ variable at any time to change the frequency of the loop.</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_idler">gy_gtk_idler</a></p>
+</div>
+<div class="docsee">
+  <h3>gy_gtk_init</h3><p>SEE: <a href="#gy_gtk_before_init">gy_gtk_before_init</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_main"></a><h3>gy_gtk_main</h3>
+  <pre>DOCUMENT gy_gtk_main, win, on_delete=CALLBACK;
+
+ Show Gtk.Window win and set-up gy_gtk.i event loop:
+ 
+ 1. Set-up after_error handler,
+ 2. Optionally connect delete-event callback,
+ 3. Show win;
+ 4. Launch event handler loop.
+
+ It is (probably) best to stop the event loop when no windows are
+ visible. To achieve this, the delete-event callback of any window
+ (and any other callback which hides or detroys a window) should
+ call gy_gtk_idler_maybe_stop.
+
+KEYWORDS:
+ on_delete:
+   the name (string) of a Yorick function suitable as a
+   delete-event handler:
+func on_delete
+       // hide or destroy
+       gy_gtk_idler_maybe_stop;
+       return 1;
+     }
+   on_delete=1 is a short-hand for on_delete="gy_gtk_hide_on_delete";
+   on_delete=2 is a short-hand for on_delete="gy_gtk_destroy_on_delete";
+
+ </pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a>, <a href="gy_gtk.html#gy_gtk_hide_on_delete">gy_gtk_hide_on_delete</a>, <a href="gy_gtk.html#gy_gtk_destroy_on_delete">gy_gtk_destroy_on_delete</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_mouse"></a><h3>gy_gtk_mouse</h3>
+  <pre>DOCUMENT result= gy_gtk_mouse(system, style, prompt)
+
+  Suspends the gy_gtk_idler loop, calls mouse(), and resets the
+  gy_gtk_idler loop.
+
+  mouse() does not play well with after(), which gy_gtk.i uses
+  extensively.  This function wraps around mouse() to alleviate
+  this.
+  
+  By default, gy_gtk.i installs gy_gtk_mouse as
+  mouse, replacing the built-in which remains available as
+  __gy_gtk_builtin_mouse.
+</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_idler">gy_gtk_idler</a>, __gy_gtk_builtin_mouse, after, <a href="gy_gtk.html#gy_gtk_i">gy_gtk_i</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_suspend"></a><h3>gy_gtk_suspend</h3>
+  <pre>DOCUMENT deprecated: gy_gtk_suspend, wdg
+  This was used when gy_gtk_main used to call gy.Gtk.main().</pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_hide_on_delete">gy_gtk_hide_on_delete</a>, <a href="gy_gtk.html#gy_gtk_destroy_on_delete">gy_gtk_destroy_on_delete</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_xid"></a><h3>gy_gtk_xid</h3>
+  <pre>DOCUMENT id=gy_gtk_xid(wdg)
+
+  Get X11 window ID associated with widget WDG.
+  This allows displaying a Yorick window inside a Gtk widget.
+
+EXAMPLE:
+  builder=Gtk.Builder.new(glade_file);
+  ywin = builder.get_object(yorick_widget_name);
+func on_ywin_event
+    window, parent=gy_gtk_xid(ywin);
+  }
+  gy_signal_connect, ywin, "event", on_ywin_event;
+  </pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, gy_gdk_window</p>
+</div>
+<div class="docblock"><a name="gy_gtk_ycmd"></a><h3>gy_gtk_ycmd</h3>
+  <pre>DOCUMENT widget = gy_gtk_ycmd (noexpander)
+
+ Create a Gtk widget to type Yorick commands, similar to
+ gyterm. Unless NOEXPANDER is specified and evaluates to true, the
+ Gtk entry is put in an expander.
+</pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, gyentry, <a href="gy_gtk.html#gy_gtk_ycmd_connect">gy_gtk_ycmd_connect</a>, <a href="gy_gtk.html#gy_gtk_ywindow">gy_gtk_ywindow</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_ycmd_connect"></a><h3>gy_gtk_ycmd_connect</h3>
+  <pre>DOCUMENT gy_gtk_ycmd_connect, entry_widget
+
+ Makes entry_widget mimick gyterm behavior.
+
+EXAMPLE
+ entry=Gtk.Entry.new();
+ gy_gtk_ycmd_connect, entry;
+</pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, <a href="gy_gtk.html#gyterm">gyterm</a>, <a href="gy_gtk.html#gy_gtk_main">gy_gtk_main</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_ywindow"></a><h3>gy_gtk_ywindow</h3>
+  <pre>DOCUMENT widget = gy_gtk_ywindow(yid)
+
+  Initialize a Gtk widget embedding Yorick window number YID. The
+  widget is scrollable and provides mouse position reading and
+  zoom/pan capabilities. The widget is connected using
+  gy_gtk_ywindow_connect.
+
+  If YID is nil, a new ID is taken and YID is set to this value.
+
+KEYWORDS: dpi, width, height, style: see window
+          on_realize, on_configure, grab: see gy_gtk_window_connect</pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, <a href="gy_gtk.html#gywindow">gywindow</a>, window, <a href="gy_gtk.html#gy_gtk_ywindow_connect">gy_gtk_ywindow_connect</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_ywindow_connect"></a><h3>gy_gtk_ywindow_connect</h3>
+  <pre>DOCUMENT gy_gtk_ywindow_connect, yid, win, da, slabel, xlabel, ylabel
+
+ Connect widgets to embed a Yorick window in a Gtk DrawingArea (see
+ gywindow for a trivial example). For a lower level function, see
+ gy_gtk_ywindow.
+
+  If YID is nil, a new ID is taken and YID is set to this value.
+
+ARGUMENTS
+ yid: Yorick window ID to embed
+ win: the toplevel Gtk.Window widget
+ da:  the Gtk.DrawingArea in which the yorick window will be embedded.
+ s|x|ylabel: Gtk.Label widgets in which to report mouse motion.
+
+KEYWORDS
+ on_realize: function to call when the window is realized
+ on_configure: function to call whenever the function is configured
+       (i.e. resized)
+ grab: 1 if window should grab the mouse, necessary to use
+       gy_gtk_ywindow_mouse_handler, otherwise discouraged
+ </pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, <a href="gy_gtk.html#gywindow">gywindow</a>, <a href="gy_gtk.html#gy_gtk_ywindow">gy_gtk_ywindow</a>, <a href="gy_gtk.html#gy_gtk_ywindow_mouse_handler">gy_gtk_ywindow_mouse_handler</a></p>
+</div>
+<div class="docblock"><a name="gy_gtk_ywindow_free_id"></a><h3>gy_gtk_ywindow_free_id</h3>
+  <pre>DOCUMENT yid = gy_gtk_ywindow_free_id( start );
+
+  Find a free Yorick window ID.
+
+  A window ID is considered free if the window is not realized
+  (which is checked using window_geometry()) and it has not yet
+  been registered as a gywindow.
+
+  The 64 possible window IDs (0 to 63) are probed starting from
+  START. If START<0, window IDs are probed in desceding order
+  starting from 64-START. For instance, if START==42, the IDs will
+  be probed in this order: 42, 43, ..., 62, 63, 0, 1, ..., 40, 41.
+
+  If no free ID can be found, gy_gtk_ywindow_free_id() returns [].
+       </pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gywindow">gywindow</a>, window, window_geometry</p>
+</div>
+<div class="docblock"><a name="gy_gtk_ywindow_mouse_handler"></a><h3>gy_gtk_ywindow_mouse_handler</h3>
+  <pre>DOCUMENT gy_gtk_ywindow_mouse_handler, yid, handler
+
+  Attach application-specific mouse event handler Yorick window
+  created with gy_gtk_ywindow (this includes gywindow windows).
+
+  The handler will be passed only press-release events and allows
+  similar actions to what mouse() provides for regular Yorick
+  windows.
+
+ARGUMENTS:
+  yid: the Yorick window ID number, first argument of
+       gy_gtk_window.
+  handler: Yorick function with prototype
+func mouse_toto;
+           where x0, y0, x1 and y1 are the window coordinates of
+           the button press and release events, button is the
+           button which was pressed, flags is limits()(5).
+   </pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, <a href="gy_gtk.html#gy_gtk_ywindow">gy_gtk_ywindow</a>, <a href="gy_gtk.html#gywindow">gywindow</a>, mouse, limits</p>
+</div>
+<div class="docblock"><a name="gy_gtk_ywindow_reinit"></a><h3>gy_gtk_ywindow_reinit</h3>
+  <pre>DOCUMENT gy_gtk_ywindow_reinit, yid
+
+  RE-initialize Yorick window YID attached to a gy widget, for
+  instance to change DPI or STYLE.
+
+KEYWORDS: dpi, style.</pre>
+  <p>SEE ALSO: <a href="gy.html#gy_i">gy_i</a>, <a href="gy_gtk.html#gywindow">gywindow</a>, <a href="gy_gtk.html#gy_gtk_ywindow">gy_gtk_ywindow</a></p>
+</div>
+<div class="docsee">
+  <h3>Y_DATA</h3><p>SEE: <a href="#Y_GLADE">Y_GLADE</a></p>
+</div>
+<div class="docblock"><a name="Y_GLADE"></a><h3>Y_GLADE</h3>
+  <pre>DOCUMENT Y_GLADE, Y_DATA
+ Semi-colon separated list of directories where glade files may be
+ located.
+
+ By default, YGLADE is initialized to:
+     Y_GLADE="./:"+Y_USER+":"+pathform(_(Y_SITES,Y_SITE)+"glade/");
+
+ Likewise, Y_DATA directories contain additional
+ platform-independent files, such as icons.
+ </pre>
+  <p>SEE ALSO: <a href="gy_gtk.html#gy_gtk_builder">gy_gtk_builder</a></p>
+</div>

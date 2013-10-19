@@ -1,0 +1,109 @@
+---
+layout: default
+headline: GObject Introspection and Gtk graphical user interfaces
+---
+<p class="sectop">Back to <a href="index.html">library index</a>.</p>
+<p class="sectop">Package gy0 (in gy0.i) - </p>
+<p class="sectop">Index of documented functions or symbols:</p>
+<div class="ndex0s">
+  <div class="ndex1">
+    <h3>G</h3>
+    <p><a href="gy0.html#gy_debug">gy_debug</a></p>
+    <p><a href="gy0.html#gy_id">gy_id</a></p>
+    <p><a href="gy0.html#gy_init">gy_init</a></p>
+  </div>
+  <div class="ndex2">
+    <p><a href="gy0.html#gy_list">gy_list</a></p>
+    <p><a href="gy0.html#gy_object_free">gy_object_free</a></p>
+    <p><a href="gy0.html#gy_setlocale">gy_setlocale</a></p>
+  </div>
+  <div class="ndex3">
+    <p><a href="gy0.html#gy_signal_connect">gy_signal_connect</a></p>
+    <h3>_</h3>
+    <p><a href="gy0.html#__gy_gtk_builder_connector">__gy_gtk_builder_connector</a></p>
+  </div>
+</div>
+<div class="docblock"><a name="gy_debug"></a><h3>gy_debug</h3>
+  <pre>DOCUMENT mode = gy_debug();
+      or gy_debug, mode;
+ Get or set gy debug mode.</pre>
+  <p>SEE ALSO: <a href="gy.html#gy">gy</a></p>
+</div>
+<div class="docblock"><a name="gy_id"></a><h3>gy_id</h3>
+  <pre>DOCUMENT id = gy_id(object)
+ 
+   Get unique id of gy object. Two variables may hold the same
+   underlying object: the id is unique.
+</pre>
+  <p>SEE ALSO: <a href="gy.html#gy">gy</a></p>
+</div>
+<div class="docblock"><a name="gy_init"></a><h3>gy_init</h3>
+  <pre>DOCUMENT gy=gy_init()
+ Initialize gy. Normally called only in gy.i.</pre>
+  
+</div>
+<div class="docblock"><a name="gy_list"></a><h3>gy_list</h3>
+  <pre>DOCUMENT gy_list, OBJECT
+
+ List symbols in gy stuff OBJECT.
+ 
+EXAMPLE:
+ gy_list, gy.Gtk
+ gy_list, "Gtk"
+ gy_list, gy.Gtk.Window
+ gy_list, gy.Gtk.Window()</pre>
+  <p>SEE ALSO: <a href="gy.html#gy">gy</a></p>
+</div>
+<div class="docblock"><a name="gy_object_free"></a><h3>gy_object_free</h3>
+  <pre>DOCUMENT gy_object_free, obj
+ Free object pointed to by gy object OBJ. May be necessary to
+ prevent some memory leaks. Experimental: Use with caution.</pre>
+  
+</div>
+<div class="docblock"><a name="gy_setlocale"></a><h3>gy_setlocale</h3>
+  <pre>DOCUMENT gy_setlocale, [category,] locale
+      or locale=gy_setlocale()
+
+  Get or set locale used in the Yorick process.
+
+  Allways resets LC_NUMERIC to "C" as other values may break
+  Yorick.
+</pre>
+  <p>SEE ALSO: <a href="gy.html#gy">gy</a></p>
+</div>
+<div class="docblock"><a name="gy_signal_connect"></a><h3>gy_signal_connect</h3>
+  <pre>DOCUMENT gy_connect_signal, object, signal, handler
+      or gy_connect_signal, builder
+
+ Connect signal to signal handler.
+ 
+ The handler must accept all the parameters described in the C
+ documentation for the signal.
+
+ARGUMENTS:
+ builder: if first argument is a Gtk Builder object, the signals
+          information it contains will be used to automatically
+          connect GObject signals to Yorick interpreted functions.
+          Whether or not the Yorick functions actually exists is
+          not checked.
+ object:  a gy object supporting signals, e.g. an instance of
+          gy.Gtk.Entry.
+ signal:  the signal name, e.g. "activated".
+ handler: the Yorick command to be executed when the object
+          receives the signal. HANDLER will be called like:
+          include, ["noop, " + handler + "(par1, ..., parn)"], 1
+          where par1 to parn are the parameters described in the C
+          documentation for SIGNAL. HANDLER may be a string or a
+          Yorick function.
+          
+EXAMPLE:
+ See gy.
+</pre>
+  <p>SEE ALSO: <a href="gy.html#gy">gy</a></p>
+</div>
+<div class="docblock"><a name="__gy_gtk_builder_connector"></a><h3>__gy_gtk_builder_connector</h3>
+  <pre>DOCUMENT __gy_gtk_builder_connector()
+ Return Pointer to C function used by gy_signal_connect when passed
+ a Gtk.Buildervobject. Internal use only.</pre>
+  
+</div>

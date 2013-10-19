@@ -1,0 +1,8 @@
+prefix: "http://dhmunro.github.com/yorick-doc"
+pkgname: "yorick-gy"
+pkgtitle: "GObject Introspection and Gtk graphical user interfaces"
+
+keywords: yorick, documentation, manual
+description: Yorick Documentation
+
+exclude: gh-pages, gh-pages.src, ydoc.pl, README.md
