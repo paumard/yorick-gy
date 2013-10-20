@@ -1,3 +1,9 @@
+yorick-gy (0.0.5-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Thibaut Paumard <thibaut@debian.org>  Sat, 19 Oct 2013 22:42:22 +0200
+
 yorick-gy (0.0.3-2) unstable; urgency=low
 
   * Canonicalize VCS fields.
