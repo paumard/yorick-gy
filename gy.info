@@ -6,7 +6,7 @@ Description: GObject introspection and Gtk widgets
 License: GPLv3
 Author: Thibaut Paumard
 Maintainer: Thibaut Paumard <paumard@users.sourceforge.net>
-OS: architecture independant
+OS: architecture independent
 Depends: yorick(>=2.2.02)
 Source: https://github.com/paumard/yorick-gy
 Source-MD5: 
