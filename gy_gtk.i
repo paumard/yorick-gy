@@ -88,6 +88,7 @@ extern Gtk, Gdk, GLib, GdkPixbuf;
    SEE ALSO: gy_gtk_i
  */
 Gtk = gy.require("Gtk", "3.0");
+GdkX11 = gy.require("GdkX11", "3.0");
 Gdk = gy.Gdk;
 GLib = gy.GLib;
 GdkPixbuf = gy.GdkPixbuf;
