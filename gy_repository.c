@@ -176,7 +176,7 @@ gy_Repository_eval(void *obj, int argc)
     if (yarg_string(argc-1)) namespace = ygets_q(argc-1);
     else namespace = yget_gy_Typelib(argc-1)->namespace;
 
-    GSList * lst = g_irepository_enumerate_versions(r->repo, namespace);
+    GSList * lst = (GSList*) g_irepository_enumerate_versions(r->repo, namespace);
     GSList * cur = 0;
     long count =0;
     

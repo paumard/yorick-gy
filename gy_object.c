@@ -156,7 +156,7 @@ gy_Object_extract(void *obj, char * name)
 	}
 
 	if (action == GYLIST_ACTION_SIZE) {
-	  GList* lst = o->object;
+	  GList* lst = (GList*) o->object;
 	  if (!lst) {
 	    ypush_long(0);
 	    return;
@@ -189,9 +189,9 @@ gy_Object_extract(void *obj, char * name)
 	} else {
 	  out -> info = o -> info;
 	  if (action==GYLIST_ACTION_NEXT)
-	    out -> object = ((GList*) o->object) -> next;
+	    out -> object = (GObject*) ((GList*) o->object) -> next;
 	  else if (action==GYLIST_ACTION_PREV)
-	    out -> object = ((GList*) o->object) -> prev;
+	    out -> object = (GObject*) ((GList*) o->object) -> prev;
 	}
 	g_base_info_ref(out -> info);
 	return;
@@ -392,7 +392,7 @@ gy_Object_eval(void *obj, int argc)
     if (type !=GI_TYPE_TAG_GLIST && type !=GI_TYPE_TAG_GSLIST)
       y_error("Unimplemented");
     if (!o->object) y_error("G(S)List is nil");
-    GList* lst = o->object;
+    GList* lst = (GList*) o->object;
     long idx = ygets_l(argc-1)-1;
     gy_Object * out = ypush_gy_Object();
     if (type !=GI_TYPE_TAG_GLIST)
