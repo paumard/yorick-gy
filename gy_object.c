@@ -414,7 +414,7 @@ gy_Object_eval(void *obj, int argc)
 
   if (isobject || isitrf || isstruct) {
     GY_DEBUG("Pushing gy_Object return value\n");
-    gy_Object* out = ypush_gy_Object(0);
+    gy_Object* out = ypush_gy_Object();
 
     out->info=o->info;
     g_base_info_ref(o->info);
