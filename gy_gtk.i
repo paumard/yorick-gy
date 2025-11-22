@@ -88,10 +88,10 @@ extern Gtk, Gdk, GLib, GdkPixbuf;
    SEE ALSO: gy_gtk_i
  */
 Gtk = gy.require("Gtk", "3.0");
+Gdk = gy.require("Gdk", "3.0");
 GdkX11 = gy.require("GdkX11", "3.0");
-Gdk = gy.Gdk;
+GdkPixbuf = gy.require("GdkPixbuf", "2.0");
 GLib = gy.GLib;
-GdkPixbuf = gy.GdkPixbuf;
 
 func __gyterm_init
 {

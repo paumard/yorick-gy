@@ -1,3 +1,7 @@
+Version 0.0.6
+    * Specify version when requiring modules in gy_gtk.i.
+ -- Thibaut Paumard <thibaut.paumard@obspm.fr>  Sat, 22 Nov 2025 09:46:20 +0100
+
 Version 0.0.5
     * fix typo in gy.c: Typelist -> Typelib
  -- Thibaut Paumard <paumard@users.sourceforge.net>  Mon, 29 Jul 2013 10:29:57 +0200
